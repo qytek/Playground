@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backrooms - 后室</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    cursor: none;
+  }
+  #game-container {
+    position: relative;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  #ui-layer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .hud-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ccc;
+    font-size: 13px;
+    text-shadow: 0 0 4px rgba(0,0,0,0.9);
+  }
+  .hud-bar {
+    height: 8px;
+    border: 1px solid #555;
+    background: #1a1a1a;
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .hud-fill {
+    height: 100%;
+    transition: width 0.3s;
+  }
+  #sanity-fill { background: #6b4fa0; box-shadow: 0 0 6px #6b4fa0; }
+  #stamina-fill { background: #4a8; }
+  #message-center {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ddd;
+    font-size: 16px;
+    text-align: center;
+    pointer-events: none;
+    z-index: 20;
+    text-shadow: 0 0 12px rgba(0,0,0,0.9);
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  #message-center.visible { opacity: 1; }
+  #crosshair {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px; height: 10px;
+    pointer-events: none;
+    z-index: 15;
+  }
+  #crosshair::before, #crosshair::after {
+    content: '';
+    position: absolute;
+    background: rgba(255,255,255,0.5);
+  }
+  #crosshair::before { top: 4px; left: 0; width: 10px; height: 2px; }
+  #crosshair::after { top: 0; left: 4px; width: 2px; height: 10px; }
+  #title-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0,0,0,0.85);
+    z-index: 30;
+    pointer-events: all;
+  }
+  #title-overlay h1 {
+    font-size: 36px;
+    color: #c8a84e;
+    letter-spacing: 6px;
+    margin-bottom: 8px;
+    text-shadow: 0 0 20px rgba(200,168,78,0.5);
+  }
+  #title-overlay .subtitle {
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 32px;
+    letter-spacing: 3px;
+  }
+  #title-overlay .btn {
+    background: transparent;
+    border: 2px solid #c8a84e;
+    color: #c8a84e;
+    padding: 10px 32px;
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.3s;
+    pointer-events: all;
+  }
+  #title-overlay .btn:hover {
+    background: #c8a84e22;
+    box-shadow: 0 0 16px rgba(200,168,78,0.3);
+  }
+  #title-overlay .hint {
+    color: #555;
+    font-size: 12px;
+    margin-top: 16px;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <canvas id="game"></canvas>
+  <div id="crosshair"></div>
+  <div id="ui-layer">
+    <div class="hud-row">
+      <span>SANITY</span>
+      <div class="hud-bar" style="width:140px"><div id="sanity-fill" class="hud-fill" style="width:100%"></div></div>
+    </div>
+    <div class="hud-row">
+      <span>STAMINA</span>
+      <div class="hud-bar" style="width:100px"><div id="stamina-fill" class="hud-fill" style="width:100%"></div></div>
+    </div>
+    <div class="hud-row" style="font-size:10px;color:#666" id="hint-text"></div>
+  </div>
+  <div id="message-center"></div>
+  <div id="title-overlay">
+    <h1>BACKROOMS</h1>
+    <div class="subtitle">后 室</div>
+    <button class="btn" id="start-btn">进 入</button>
+    <div class="hint">WASD 移动 · SHIFT 奔跑 · 寻找出口</div>
+  </div>
+</div>
+
+<script>
+// ============ CONFIGURATION ============
+const TILE = 16;
+const ROOM_TILES = 11;
+const ROOM_PX = ROOM_TILES * TILE;
+const MAP_ROOMS = 35;
+const VISION_RADIUS = 7;
+const INTERNAL_W = 480;
+const INTERNAL_H = 320;
+
+// ============ CANVAS SETUP ============
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = INTERNAL_W;
+canvas.height = INTERNAL_H;
+
+function resize() {
+  const scale = Math.min(
+    window.innerWidth / INTERNAL_W,
+    window.innerHeight / INTERNAL_H
+  );
+  canvas.style.width = Math.floor(INTERNAL_W * scale) + 'px';
+  canvas.style.height = Math.floor(INTERNAL_H * scale) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ============ UTILITY ============
+function hash(x, y) {
+  let h = ((x * 374761393) ^ (y * 668265263)) + 1274126177;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+function rng(x, y) {
+  let h = hash(x, y);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) & 0x7fffffff) / 0x7fffffff;
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function dist(a, b) {
+  const dx = a.x - b.x, dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ============ WORLD GENERATION ============
+// Room graph: which directions have open doors
+const roomGraph = {};   // key: "rx,ry" -> { n,s,e,w: bool }
+const roomTypes = {};   // key: "rx,ry" -> "normal"|"dark"|"flicker"|"exit"|"start"
+const visitedRooms = {}; // key: "rx,ry" -> bool (generated tiles)
+
+function rkey(rx, ry) { return rx + ',' + ry; }
+
+function generateMaze() {
+  // Clear
+  for (const k in roomGraph) delete roomGraph[k];
+  for (const k in roomTypes) delete roomTypes[k];
+  for (const k in visitedRooms) delete visitedRooms[k];
+
+  // Initialize all cells with all walls
+  for (let x = 0; x < MAP_ROOMS; x++) {
+    for (let y = 0; y < MAP_ROOMS; y++) {
+      roomGraph[rkey(x, y)] = { n: false, s: false, e: false, w: false };
+    }
+  }
+
+  // Recursive backtracker maze generation
+  const stack = [];
+  const visited = new Set();
+  const startRx = Math.floor(MAP_ROOMS / 2);
+  const startRy = Math.floor(MAP_ROOMS / 2);
+
+  function visit(rx, ry) {
+    visited.add(rkey(rx, ry));
+    const dirs = shuffle(['n','s','e','w']);
+    for (const dir of dirs) {
+      let nx = rx, ny = ry, opp = '';
+      if (dir === 'n') { ny--; opp = 's'; }
+      else if (dir === 's') { ny++; opp = 'n'; }
+      else if (dir === 'e') { nx++; opp = 'w'; }
+      else if (dir === 'w') { nx--; opp = 'e'; }
+
+      if (nx >= 0 && nx < MAP_ROOMS && ny >= 0 && ny < MAP_ROOMS && !visited.has(rkey(nx, ny))) {
+        roomGraph[rkey(rx, ry)][dir] = true;
+        roomGraph[rkey(nx, ny)][opp] = true;
+        stack.push([nx, ny]);
+        visit(nx, ny);
+      }
+    }
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  stack.push([startRx, startRy]);
+  visit(startRx, startRy);
+
+  // Add some extra connections for loops (makes it less linear)
+  for (let x = 0; x < MAP_ROOMS; x++) {
+    for (let y = 0; y < MAP_ROOMS; y++) {
+      if (rng(x, y) < 0.08) {
+        const dirs = shuffle(['n','s','e','w']);
+        for (const dir of dirs) {
+          let nx = x, ny = y, opp = '';
+          if (dir === 'n') { ny--; opp = 's'; }
+          else if (dir === 's') { ny++; opp = 'n'; }
+          else if (dir === 'e') { nx++; opp = 'w'; }
+          else if (dir === 'w') { nx--; opp = 'e'; }
+          if (nx >= 0 && nx < MAP_ROOMS && ny >= 0 && ny < MAP_ROOMS && !roomGraph[rkey(x,y)][dir]) {
+            roomGraph[rkey(x,y)][dir] = true;
+            roomGraph[rkey(nx,ny)][opp] = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Assign room types
+  for (let x = 0; x < MAP_ROOMS; x++) {
+    for (let y = 0; y < MAP_ROOMS; y++) {
+      const r = rng(x + 100, y + 100);
+      if (r < 0.12) roomTypes[rkey(x,y)] = 'dark';
+      else if (r < 0.20) roomTypes[rkey(x,y)] = 'flicker';
+      else roomTypes[rkey(x,y)] = 'normal';
+    }
+  }
+
+  // Start room
+  roomTypes[rkey(startRx, startRy)] = 'start';
+
+  // Exit room: find a far room
+  let farRx = 0, farRy = 0, maxDist = 0;
+  for (let x = 0; x < MAP_ROOMS; x++) {
+    for (let y = 0; y < MAP_ROOMS; y++) {
+      const d = Math.abs(x - startRx) + Math.abs(y - startRy);
+      if (d > maxDist && roomTypes[rkey(x,y)] === 'normal') {
+        maxDist = d;
+        farRx = x; farRy = y;
+      }
+    }
+  }
+  roomTypes[rkey(farRx, farRy)] = 'exit';
+
+  return { startRx, startRy, exitRx: farRx, exitRy: farRy };
+}
+
+// ============ TILE GENERATION FOR A ROOM ============
+// Returns a 2D array [ROOM_TILES][ROOM_TILES] of tile types
+// 0=floor, 1=wall, 2=doorway, 3=light
+function generateRoomTiles(rx, ry) {
+  const key = rkey(rx, ry);
+  if (visitedRooms[key]) return visitedRooms[key];
+
+  const tiles = [];
+  for (let y = 0; y < ROOM_TILES; y++) {
+    tiles[y] = [];
+    for (let x = 0; x < ROOM_TILES; x++) {
+      tiles[y][x] = 0; // floor
+    }
+  }
+
+  // Walls around the perimeter
+  for (let x = 0; x < ROOM_TILES; x++) {
+    tiles[0][x] = 1;
+    tiles[ROOM_TILES - 1][x] = 1;
+  }
+  for (let y = 0; y < ROOM_TILES; y++) {
+    tiles[y][0] = 1;
+    tiles[y][ROOM_TILES - 1] = 1;
+  }
+
+  // Doorways based on room graph
+  const mid = Math.floor(ROOM_TILES / 2);
+  const graph = roomGraph[key] || { n: false, s: false, e: false, w: false };
+
+  if (graph.n) { tiles[0][mid] = 2; tiles[0][mid-1] = 2; tiles[0][mid+1] = 2; }
+  if (graph.s) { tiles[ROOM_TILES-1][mid] = 2; tiles[ROOM_TILES-1][mid-1] = 2; tiles[ROOM_TILES-1][mid+1] = 2; }
+  if (graph.w) { tiles[mid][0] = 2; tiles[mid-1][0] = 2; tiles[mid+1][0] = 2; }
+  if (graph.e) { tiles[mid][ROOM_TILES-1] = 2; tiles[mid-1][ROOM_TILES-1] = 2; tiles[mid+1][ROOM_TILES-1] = 2; }
+
+  // Light fixtures (ceiling lights)
+  const rtype = roomTypes[key] || 'normal';
+  if (rtype !== 'dark') {
+    // Place lights in a grid pattern
+    for (let ly = 2; ly < ROOM_TILES - 2; ly += 4) {
+      for (let lx = 2; lx < ROOM_TILES - 2; lx += 4) {
+        if (tiles[ly][lx] === 0) tiles[ly][lx] = 3;
+      }
+    }
+  }
+
+  // Special: exit room glow
+  if (rtype === 'exit') {
+    tiles[mid][mid] = 4; // exit marker
+  }
+
+  visitedRooms[key] = tiles;
+  return tiles;
+}
+
+// ============ AUDIO ENGINE ============
+let audioCtx = null;
+let masterGain = null;
+let audioNodes = {};
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.3;
+  masterGain.connect(audioCtx.destination);
+}
+
+function createDrone() {
+  if (!audioCtx) return;
+  stopAudioNode('drone');
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
+
+  osc.type = 'sawtooth';
+  osc.frequency.value = 58;
+
+  const lfo = audioCtx.createOscillator();
+  const lfoGain = audioCtx.createGain();
+  lfo.frequency.value = 0.15;
+  lfoGain.gain.value = 3;
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc.frequency);
+
+  filter.type = 'lowpass';
+  filter.frequency.value = 200;
+  filter.Q.value = 3;
+
+  gain.gain.value = 0.12;
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+
+  osc.start();
+  lfo.start();
+  audioNodes.drone = { osc, gain, filter, lfo, lfoGain };
+}
+
+function createHum() {
+  if (!audioCtx) return;
+  stopAudioNode('hum');
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = 'sine';
+  osc.frequency.value = 120;
+  gain.gain.value = 0.04;
+
+  const lfo = audioCtx.createOscillator();
+  const lfoGain = audioCtx.createGain();
+  lfo.frequency.value = 59.7;
+  lfoGain.gain.value = 0.5;
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc.frequency);
+
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start();
+  lfo.start();
+  audioNodes.hum = { osc, gain, lfo, lfoGain };
+}
+
+function playFootstep() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = 40 + Math.random() * 30;
+  gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + 0.1);
+}
+
+function playHeartbeat() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 55;
+  gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 100;
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + 0.2);
+}
+
+function playEntityGrowl() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+  osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 0.6);
+  gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.3);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.7);
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 250;
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + 0.8);
+}
+
+function playExitSound() {
+  if (!audioCtx) return;
+  // Rising tone
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 1.5);
+  gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 1.5);
+  gain.connect(masterGain);
+  osc.connect(gain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + 2);
+}
+
+function playDeathSound() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 1.0);
+  gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.3);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(500, audioCtx.currentTime);
+  filter.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 1.0);
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + 1.3);
+}
+
+function stopAudioNode(name) {
+  if (audioNodes[name]) {
+    try {
+      for (const n of Object.values(audioNodes[name])) {
+        if (n && typeof n.stop === 'function') n.stop();
+      }
+    } catch(e) {}
+    delete audioNodes[name];
+  }
+}
+
+// ============ GAME STATE ============
+let gameState = 'title'; // title, playing, win, dead
+let player, entity, camera;
+let mazeData;
+let frameCount = 0;
+let footstepTimer = 0;
+let heartbeatTimer = 0;
+let entityGrowlTimer = 0;
+let messageText = '';
+let messageTimer = 0;
+let screenShake = 0;
+
+function getRoomKey(rx, ry) { return rkey(rx, ry); }
+
+function worldToRoom(wx, wy) {
+  return {
+    rx: Math.floor(wx / ROOM_PX),
+    ry: Math.floor(wy / ROOM_PX),
+    tx: Math.floor((wx % ROOM_PX + ROOM_PX) % ROOM_PX / TILE),
+    ty: Math.floor((wy % ROOM_PX + ROOM_PX) % ROOM_PX / TILE)
+  };
+}
+
+function roomToWorld(rx, ry) {
+  return { x: rx * ROOM_PX, y: ry * ROOM_PX };
+}
+
+function getTile(wx, wy) {
+  const { rx, ry, tx, ty } = worldToRoom(wx, wy);
+  if (rx < 0 || rx >= MAP_ROOMS || ry < 0 || ry >= MAP_ROOMS) return 1; // wall at map edges
+  const tiles = generateRoomTiles(rx, ry);
+  if (ty < 0 || ty >= ROOM_TILES || tx < 0 || tx >= ROOM_TILES) return 1;
+  return tiles[ty][tx];
+}
+
+function isSolid(wx, wy) {
+  const t = getTile(wx, wy);
+  return t === 1; // wall
+}
+
+// ============ PLAYER ============
+function createPlayer(wx, wy) {
+  return {
+    x: wx, y: wy,
+    vx: 0, vy: 0,
+    speed: 1.5,
+    sanity: 100,
+    stamina: 100,
+    facing: 0, // radians
+    footstepAccum: 0,
+  };
+}
+
+function updatePlayer(dt) {
+  if (gameState !== 'playing') return;
+
+  const p = player;
+  const running = keys['Shift'] && p.stamina > 0;
+  const spd = running ? p.speed * 1.7 : p.speed;
+
+  // Input direction
+  let mx = 0, my = 0;
+  if (keys['KeyW'] || keys['ArrowUp']) my -= 1;
+  if (keys['KeyS'] || keys['ArrowDown']) my += 1;
+  if (keys['KeyA'] || keys['ArrowLeft']) mx -= 1;
+  if (keys['KeyD'] || keys['ArrowRight']) mx += 1;
+
+  if (mx !== 0 || my !== 0) {
+    const len = Math.sqrt(mx * mx + my * my);
+    mx /= len; my /= len;
+    p.facing = Math.atan2(my, mx);
+  }
+
+  // Apply movement with collision
+  const nx = p.x + mx * spd * dt * 60;
+  const ny = p.y + my * spd * dt * 60;
+
+  // Check collision at player bounds
+  const ph = 6; // half hitbox
+  if (!isSolid(nx, p.y - ph) && !isSolid(nx, p.y + ph) && !isSolid(nx - ph, p.y) && !isSolid(nx + ph, p.y)) {
+    p.x = nx;
+  }
+  if (!isSolid(p.x, ny - ph) && !isSolid(p.x, ny + ph) && !isSolid(p.x - ph, ny) && !isSolid(p.x + ph, ny)) {
+    p.y = ny;
+  }
+
+  // Stamina
+  if (running && (mx !== 0 || my !== 0)) {
+    p.stamina = Math.max(0, p.stamina - 15 * dt);
+  } else {
+    p.stamina = Math.min(100, p.stamina + 8 * dt);
+  }
+
+  // Footstep sounds
+  if (mx !== 0 || my !== 0) {
+    p.footstepAccum += spd * dt * 60;
+    const interval = running ? 4 : 8;
+    if (p.footstepAccum >= interval) {
+      p.footstepAccum -= interval;
+      playFootstep();
+    }
+  } else {
+    p.footstepAccum = 0;
+  }
+
+  // Check current room
+  const { rx, ry } = worldToRoom(p.x, p.y);
+  const rk = getRoomKey(rx, ry);
+  const rtype = roomTypes[rk] || 'normal';
+
+  // Sanity drain in dark rooms
+  if (rtype === 'dark') {
+    p.sanity = Math.max(0, p.sanity - 5 * dt);
+  }
+
+  // Sanity drain when entity is very close
+  const edist = dist(p, entity);
+  if (edist < TILE * 5) {
+    p.sanity = Math.max(0, p.sanity - 8 * dt);
+  } else if (edist < TILE * 10) {
+    p.sanity = Math.max(0, p.sanity - 2 * dt);
+  }
+
+  // Sanity slow regen in safe conditions
+  if (rtype !== 'dark' && edist > TILE * 10 && p.sanity < 100) {
+    p.sanity = Math.min(100, p.sanity + 1 * dt);
+  }
+
+  // Check exit
+  const tile = getTile(p.x, p.y);
+  if (tile === 4) {
+    endGame('win');
+  }
+
+  // Check entity collision
+  if (edist < TILE * 1.2) {
+    endGame('dead');
+  }
+}
+
+// ============ ENTITY AI ============
+function createEntity(wx, wy) {
+  return {
+    x: wx, y: wy,
+    speed: 0.6,
+    targetRx: 0, targetRy: 0,
+    path: [],
+    pathTimer: 0,
+    visible: false,
+  };
+}
+
+function findPath(fromRx, fromRy, toRx, toRy) {
+  // BFS through room graph
+  const start = rkey(fromRx, fromRy);
+  const goal = rkey(toRx, toRy);
+  if (start === goal) return [];
+
+  const queue = [[fromRx, fromRy]];
+  const cameFrom = {};
+  const visited = new Set();
+  visited.add(start);
+
+  while (queue.length > 0) {
+    const [rx, ry] = queue.shift();
+    const cur = rkey(rx, ry);
+    if (cur === goal) break;
+
+    const g = roomGraph[cur] || { n: false, s: false, e: false, w: false };
+    const dirs = [];
+    if (g.n) dirs.push([rx, ry - 1, 'n']);
+    if (g.s) dirs.push([rx, ry + 1, 's']);
+    if (g.e) dirs.push([rx + 1, ry, 'e']);
+    if (g.w) dirs.push([rx - 1, ry, 'w']);
+
+    for (const [nx, ny, _] of dirs) {
+      const nk = rkey(nx, ny);
+      if (!visited.has(nk) && nx >= 0 && nx < MAP_ROOMS && ny >= 0 && ny < MAP_ROOMS) {
+        visited.add(nk);
+        cameFrom[nk] = cur;
+        queue.push([nx, ny]);
+      }
+    }
+  }
+
+  // Reconstruct path
+  const path = [];
+  let cur = goal;
+  while (cur !== start && cameFrom[cur]) {
+    const [rx, ry] = cur.split(',').map(Number);
+    path.unshift({ rx, ry });
+    cur = cameFrom[cur];
+  }
+  return path;
+}
+
+function updateEntity(dt) {
+  if (gameState !== 'playing') return;
+
+  const e = entity;
+  const p = player;
+
+  // Determine player's room
+  const { rx: prx, ry: pry } = worldToRoom(p.x, p.y);
+  // Determine entity's room
+  const { rx: erx, ry: ery } = worldToRoom(e.x, e.y);
+
+  // Is entity visible to player?
+  const edist = dist(e, p);
+  e.visible = edist < TILE * VISION_RADIUS;
+
+  // Line of sight check (simple: within vision radius and not blocked by walls)
+  let hasLOS = false;
+  if (e.visible) {
+    hasLOS = true;
+    // Raycast: check if any wall between entity and player
+    const steps = Math.ceil(edist / (TILE / 2));
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const cx = e.x + (p.x - e.x) * t;
+      const cy = e.y + (p.y - e.y) * t;
+      if (isSolid(cx, cy)) {
+        hasLOS = false;
+        break;
+      }
+    }
+  }
+
+  // Update path periodically
+  e.pathTimer += dt;
+  if (e.pathTimer > 1.5 || (e.path.length === 0 && e.pathTimer > 0.3)) {
+    e.pathTimer = 0;
+    e.path = findPath(erx, ery, prx, pry);
+  }
+
+  // Speed: slower when observed
+  const observed = hasLOS;
+  const spd = observed ? e.speed * 0.25 : e.speed;
+
+  // Move toward target
+  let targetX, targetY;
+  if (e.path.length > 0) {
+    // Target the center of the next room in path
+    const next = e.path[0];
+    const rw = roomToWorld(next.rx, next.ry);
+    targetX = rw.x + ROOM_PX / 2;
+    targetY = rw.y + ROOM_PX / 2;
+
+    // If entity reached this room, pop from path
+    if (erx === next.rx && ery === next.ry) {
+      e.path.shift();
+    }
+  } else {
+    // In same room as player or can't find path - go directly toward player
+    targetX = p.x;
+    targetY = p.y;
+  }
+
+  // Move toward target
+  const dx = targetX - e.x;
+  const dy = targetY - e.y;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d > 0.5) {
+    const mx = dx / d, my = dy / d;
+    const nx = e.x + mx * spd * dt * 60;
+    const ny = e.y + my * spd * dt * 60;
+
+    // Entity also checks collision (but can squeeze through doors)
+    if (!isSolid(nx, e.y)) e.x = nx;
+    if (!isSolid(e.x, ny)) e.y = ny;
+  }
+
+  // Growl sounds when close
+  entityGrowlTimer += dt;
+  if (edist < TILE * 8 && entityGrowlTimer > 4 + Math.random() * 3) {
+    entityGrowlTimer = 0;
+    playEntityGrowl();
+  }
+}
+
+// ============ RENDERER ============
+// Color palette
+const C_FLOOR = '#b8973e';
+const C_FLOOR_DARK = '#9a7d32';
+const C_WALL = '#d4b860';
+const C_WALL_DARK = '#a89040';
+const C_WALL_TRIM = '#8b7030';
+const C_CARPET_WET = '#7a6028';
+const C_LIGHT_ON = '#fffaee';
+const C_LIGHT_OFF = '#3a3020';
+const C_DOORWAY = '#5a4a28';
+const C_EXIT_GLOW = '#aaddff';
+const C_PLAYER = '#dde';
+const C_ENTITY = '#111';
+const C_ENTITY_EYE = '#f44';
+
+function drawFloorPattern(rx, ry, offsetX, offsetY) {
+  // Draw subtle carpet pattern
+  const sx = rx * ROOM_PX;
+  const sy = ry * ROOM_PX;
+  for (let ty = 0; ty < ROOM_TILES; ty++) {
+    for (let tx = 0; tx < ROOM_TILES; tx++) {
+      const wx = sx + tx * TILE;
+      const wy = sy + ty * TILE;
+      const sx2 = wx - offsetX;
+      const sy2 = wy - offsetY;
+
+      // Culling
+      if (sx2 < -TILE || sx2 > INTERNAL_W + TILE || sy2 < -TILE || sy2 > INTERNAL_H + TILE) continue;
+
+      const tiles = generateRoomTiles(rx, ry);
+      const tile = tiles[ty][tx];
+
+      if (tile === 1) {
+        // Wall
+        const isEdge = (tx === 0 || tx === ROOM_TILES - 1 || ty === 0 || ty === ROOM_TILES - 1);
+        ctx.fillStyle = isEdge ? C_WALL_DARK : C_WALL;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        // Wall trim at bottom
+        if (ty === ROOM_TILES - 1 || (ty > 0 && tiles[ty+1] && tiles[ty+1][tx] === 0)) {
+          ctx.fillStyle = C_WALL_TRIM;
+          ctx.fillRect(Math.floor(sx2), Math.floor(sy2) + TILE - 3, TILE, 3);
+        }
+
+        // Wallpaper pattern lines
+        if ((tx + ty) % 3 === 0 && tile === 1) {
+          ctx.fillStyle = 'rgba(0,0,0,0.08)';
+          ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, 1);
+        }
+
+      } else if (tile === 2) {
+        // Doorway - dark
+        ctx.fillStyle = C_DOORWAY;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+      } else if (tile === 3) {
+        // Light fixture on floor (represented as subtle highlight)
+        const rtype = roomTypes[rkey(rx, ry)] || 'normal';
+        const lightOn = (rtype !== 'dark');
+        ctx.fillStyle = C_FLOOR;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+        if (lightOn) {
+          ctx.fillStyle = 'rgba(255,250,238,0.15)';
+          ctx.fillRect(Math.floor(sx2 + 3), Math.floor(sy2 + 3), TILE - 6, TILE - 6);
+        }
+
+      } else if (tile === 4) {
+        // Exit marker - glowing
+        ctx.fillStyle = C_FLOOR;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+        const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.05);
+        ctx.fillStyle = `rgba(150,220,255,${0.3 + pulse * 0.4})`;
+        ctx.fillRect(Math.floor(sx2 + 1), Math.floor(sy2 + 1), TILE - 2, TILE - 2);
+        // Particles
+        for (let i = 0; i < 3; i++) {
+          const px = sx2 + TILE/2 + Math.sin(frameCount * 0.04 + i) * TILE/2;
+          const py = sy2 + TILE/2 + Math.cos(frameCount * 0.04 + i) * TILE/2;
+          ctx.fillStyle = `rgba(200,240,255,${0.5 + pulse * 0.3})`;
+          ctx.fillRect(Math.floor(px), Math.floor(py), 2, 2);
+        }
+
+      } else {
+        // Floor with subtle variation
+        const v = hash(rx * 100 + tx, ry * 100 + ty) % 100;
+        const shade = v < 15 ? C_FLOOR_DARK : v < 18 ? C_CARPET_WET : C_FLOOR;
+        ctx.fillStyle = shade;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        // Subtle grid lines (carpet tiles)
+        if (tx % 2 === 0 || ty % 2 === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.04)';
+          if (tx % 2 === 0) ctx.fillRect(Math.floor(sx2), Math.floor(sy2), 1, TILE);
+          if (ty % 2 === 0) ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, 1);
+        }
+      }
+    }
+  }
+}
+
+function drawLighting(offsetX, offsetY) {
+  // Draw darkness / fog of war
+  const p = player;
+  const px = p.x - offsetX;
+  const py = p.y - offsetY;
+
+  // Create radial gradient for player's light
+  const lightRadius = TILE * VISION_RADIUS;
+
+  // First, cover everything in dark
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+  // Cut out light around player
+  const gradient = ctx.createRadialGradient(px, py, lightRadius * 0.3, px, py, lightRadius);
+  gradient.addColorStop(0, 'rgba(0,0,0,0)');
+  gradient.addColorStop(0.5, 'rgba(0,0,0,0)');
+  gradient.addColorStop(0.8, 'rgba(0,0,0,0.4)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0.85)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+  // Room lights: check nearby rooms
+  const { rx: prx, ry: pry } = worldToRoom(p.x, p.y);
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const rx = prx + dx, ry = pry + dy;
+      if (rx < 0 || rx >= MAP_ROOMS || ry < 0 || ry >= MAP_ROOMS) continue;
+      const rtype = roomTypes[rkey(rx, ry)] || 'normal';
+      if (rtype === 'dark') continue;
+
+      const roomWX = rx * ROOM_PX - offsetX;
+      const roomWY = ry * ROOM_PX - offsetY;
+
+      // Flickering
+      let alpha = 0.08;
+      if (rtype === 'flicker') {
+        const flicker = Math.sin(frameCount * 0.3 + hash(rx, ry)) * 0.5 + 0.5;
+        const spike = Math.sin(frameCount * 1.7 + hash(rx + 50, ry)) > 0.85 ? 0 : 1;
+        alpha = 0.08 * flicker * spike;
+      }
+
+      if (alpha > 0.01) {
+        ctx.fillStyle = `rgba(255,248,220,${alpha})`;
+        ctx.fillRect(Math.floor(roomWX + TILE), Math.floor(roomWY + TILE), ROOM_PX - TILE * 2, ROOM_PX - TILE * 2);
+      }
+    }
+  }
+
+  // Exit room always has a subtle glow visible from adjacent rooms
+  if (mazeData) {
+    const exitWX = mazeData.exitRx * ROOM_PX - offsetX;
+    const exitWY = mazeData.exitRy * ROOM_PX - offsetY;
+    const exitDist = dist(
+      { x: mazeData.exitRx * ROOM_PX + ROOM_PX/2, y: mazeData.exitRy * ROOM_PX + ROOM_PX/2 },
+      { x: p.x, y: p.y }
+    );
+    if (exitDist < TILE * 20) {
+      const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.03);
+      ctx.fillStyle = `rgba(150,200,240,${0.06 + pulse * 0.04})`;
+      ctx.fillRect(Math.floor(exitWX), Math.floor(exitWY), ROOM_PX, ROOM_PX);
+    }
+  }
+}
+
+function drawPlayer(offsetX, offsetY) {
+  const p = player;
+  const sx = Math.floor(p.x - offsetX);
+  const sy = Math.floor(p.y - offsetY);
+
+  // Body
+  ctx.fillStyle = C_PLAYER;
+  ctx.fillRect(sx - 3, sy - 4, 6, 8);
+
+  // Head
+  ctx.fillStyle = '#ffe';
+  ctx.fillRect(sx - 2, sy - 5, 4, 3);
+
+  // Eyes (facing direction)
+  const ex = Math.cos(p.facing) * 1.5;
+  const ey = Math.sin(p.facing) * 1.5;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(Math.floor(sx + ex - 0.5), Math.floor(sy - 4.5 + ey), 1, 1);
+}
+
+function drawEntity(offsetX, offsetY) {
+  const e = entity;
+  if (!e.visible && dist(e, player) > TILE * 4) return;
+
+  const sx = Math.floor(e.x - offsetX);
+  const sy = Math.floor(e.y - offsetY);
+
+  // Tall dark figure
+  ctx.fillStyle = C_ENTITY;
+  ctx.fillRect(sx - 3, sy - 10, 6, 14);
+
+  // Head
+  ctx.fillRect(sx - 2, sy - 12, 4, 4);
+
+  // Eyes - glow red
+  const pulse = 0.6 + 0.4 * Math.sin(frameCount * 0.08);
+  ctx.fillStyle = `rgba(255,40,40,${pulse})`;
+  ctx.fillRect(sx - 1, sy - 10, 1, 1);
+  ctx.fillRect(sx + 1, sy - 10, 1, 1);
+
+  // If not in LOS but close, show a subtle shadow
+  if (!e.visible && dist(e, player) < TILE * 7) {
+    ctx.fillStyle = 'rgba(255,0,0,0.08)';
+    ctx.fillRect(sx - 6, sy - 14, 12, 20);
+  }
+}
+
+function drawHUD() {
+  document.getElementById('sanity-fill').style.width = player.sanity + '%';
+  document.getElementById('stamina-fill').style.width = player.stamina + '%';
+
+  // Sanity color changes
+  const sanityFill = document.getElementById('sanity-fill');
+  if (player.sanity < 30) {
+    sanityFill.style.background = '#c0392b';
+    sanityFill.style.boxShadow = '0 0 8px #c0392b';
+  } else if (player.sanity < 60) {
+    sanityFill.style.background = '#d35400';
+    sanityFill.style.boxShadow = '0 0 6px #d35400';
+  } else {
+    sanityFill.style.background = '#6b4fa0';
+    sanityFill.style.boxShadow = '0 0 6px #6b4fa0';
+  }
+
+  // Hint text
+  const hint = document.getElementById('hint-text');
+  const { rx, ry, tx, ty } = worldToRoom(player.x, player.y);
+  const rtype = roomTypes[rkey(rx, ry)] || 'normal';
+  if (rtype === 'exit') {
+    hint.textContent = '你感受到了出口的气息...';
+    hint.style.color = '#aad';
+  } else if (dist(player, entity) < TILE * 6) {
+    hint.textContent = '有什么东西在附近...';
+    hint.style.color = '#a33';
+  } else if (rtype === 'dark') {
+    hint.textContent = '这里太暗了...';
+    hint.style.color = '#666';
+  } else {
+    hint.textContent = '';
+  }
+}
+
+function showMessage(msg, duration = 3) {
+  messageText = msg;
+  messageTimer = duration;
+  const el = document.getElementById('message-center');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+function updateMessage(dt) {
+  if (messageTimer > 0) {
+    messageTimer -= dt;
+    if (messageTimer <= 0) {
+      document.getElementById('message-center').classList.remove('visible');
+    }
+  }
+}
+
+function render() {
+  ctx.clearRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+  if (gameState === 'title') return;
+
+  // Screen shake
+  let shakeX = 0, shakeY = 0;
+  if (screenShake > 0) {
+    shakeX = (Math.random() - 0.5) * screenShake * 8;
+    shakeY = (Math.random() - 0.5) * screenShake * 8;
+  }
+
+  // Camera follows player
+  const cx = player.x - INTERNAL_W / 2 + shakeX;
+  const cy = player.y - INTERNAL_H / 2 + shakeY;
+  const offsetX = cx;
+  const offsetY = cy;
+
+  // Determine visible rooms
+  const { rx: prx, ry: pry } = worldToRoom(player.x, player.y);
+  const roomRange = 3;
+  const roomsToDraw = [];
+
+  for (let dx = -roomRange; dx <= roomRange; dx++) {
+    for (let dy = -roomRange; dy <= roomRange; dy++) {
+      const rx = prx + dx, ry = pry + dy;
+      if (rx >= 0 && rx < MAP_ROOMS && ry >= 0 && ry < MAP_ROOMS) {
+        roomsToDraw.push([rx, ry]);
+      }
+    }
+  }
+
+  // Sort rooms for proper draw order (back to front for walls to overlap correctly)
+  roomsToDraw.sort((a, b) => a[1] - b[1]);
+
+  // Draw rooms
+  for (const [rx, ry] of roomsToDraw) {
+    drawFloorPattern(rx, ry, offsetX, offsetY);
+  }
+
+  // Draw exit glow
+  if (mazeData) {
+    // Extra glow on exit room
+  }
+
+  // Draw entity (behind some things, in front of floor)
+  drawEntity(offsetX, offsetY);
+
+  // Draw player
+  drawPlayer(offsetX, offsetY);
+
+  // Draw lighting overlay
+  drawLighting(offsetX, offsetY);
+
+  // Sanity vignette at low sanity
+  if (player.sanity < 40) {
+    const alpha = (40 - player.sanity) / 40 * 0.5;
+    const gradient = ctx.createRadialGradient(INTERNAL_W/2, INTERNAL_H/2, INTERNAL_W * 0.4,
+                                               INTERNAL_W/2, INTERNAL_H/2, INTERNAL_W * 0.75);
+    gradient.addColorStop(0, 'rgba(0,0,0,0)');
+    gradient.addColorStop(1, `rgba(30,0,0,${alpha})`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+  }
+
+  // VHS-style scanlines
+  ctx.fillStyle = 'rgba(0,0,0,0.04)';
+  for (let y = 0; y < INTERNAL_H; y += 3) {
+    ctx.fillRect(0, y, INTERNAL_W, 1);
+  }
+
+  // Chromatic aberration at very low sanity
+  if (player.sanity < 20) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = `rgba(255,0,0,${0.02 + (20-player.sanity)/20 * 0.05})`;
+    ctx.fillRect(1, 0, INTERNAL_W, INTERNAL_H);
+    ctx.fillStyle = `rgba(0,0,255,${0.02 + (20-player.sanity)/20 * 0.05})`;
+    ctx.fillRect(-1, 0, INTERNAL_W, INTERNAL_H);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
+
+// ============ INPUT ============
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'KeyW' || e.code === 'KeyS' || e.code === 'KeyA' || e.code === 'KeyD' ||
+      e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight' ||
+      e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    e.preventDefault();
+  }
+});
+window.addEventListener('keyup', e => {
+  keys[e.code] = false;
+});
+
+// ============ GAME LOOP ============
+let lastTime = 0;
+
+function update(dt) {
+  if (gameState !== 'playing') return;
+
+  frameCount++;
+  updatePlayer(dt);
+  updateEntity(dt);
+  updateMessage(dt);
+
+  // Screen shake decay
+  if (screenShake > 0) {
+    screenShake = Math.max(0, screenShake - dt * 2);
+  }
+
+  // Heartbeat when entity is close
+  heartbeatTimer += dt;
+  const edist = dist(player, entity);
+  if (edist < TILE * 8 && heartbeatTimer > 1.0) {
+    heartbeatTimer = 0;
+    playHeartbeat();
+    if (edist < TILE * 4) screenShake = Math.min(1, screenShake + 0.3);
+  }
+
+  // Sanity death
+  if (player.sanity <= 0) {
+    endGame('dead');
+  }
+
+  // Update key state for shift
+  if (keys['ShiftLeft'] || keys['ShiftRight']) keys['Shift'] = true;
+  else keys['Shift'] = false;
+}
+
+function gameLoop(timestamp) {
+  let dt = (timestamp - lastTime) / 1000;
+  if (dt <= 0) dt = 0.016;
+  if (dt > 0.1) dt = 0.1; // Cap to avoid jumps
+  lastTime = timestamp;
+
+  update(dt);
+  render();
+  drawHUD();
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ============ GAME START / END ============
+function startGame() {
+  initAudio();
+  mazeData = generateMaze();
+
+  // Place player in start room
+  const startWX = mazeData.startRx * ROOM_PX + ROOM_PX / 2;
+  const startWY = mazeData.startRy * ROOM_PX + ROOM_PX / 2;
+  player = createPlayer(startWX, startWY);
+
+  // Place entity in a room between start and exit
+  const midRx = Math.floor((mazeData.startRx + mazeData.exitRx) / 2) + 2;
+  const midRy = Math.floor((mazeData.startRy + mazeData.exitRy) / 2) + 2;
+  const entityWX = midRx * ROOM_PX + ROOM_PX / 2;
+  const entityWY = midRy * ROOM_PX + ROOM_PX / 2;
+  entity = createEntity(entityWX, entityWY);
+
+  gameState = 'playing';
+  frameCount = 0;
+  screenShake = 0;
+  messageTimer = 0;
+
+  document.getElementById('title-overlay').style.display = 'none';
+  document.getElementById('message-center').classList.remove('visible');
+
+  createDrone();
+  createHum();
+
+  showMessage('你从现实中 noclipped 进入了后室...', 4);
+}
+
+function endGame(reason) {
+  gameState = reason;
+  stopAudioNode('drone');
+  stopAudioNode('hum');
+
+  const overlay = document.getElementById('title-overlay');
+  overlay.style.display = 'flex';
+
+  if (reason === 'win') {
+    playExitSound();
+    overlay.querySelector('h1').textContent = '你逃出来了';
+    overlay.querySelector('h1').style.color = '#aaddff';
+    overlay.querySelector('.subtitle').textContent = '但后室永远不会消失...';
+    overlay.querySelector('.btn').textContent = '再次进入';
+    overlay.querySelector('.hint').textContent = '';
+    showMessage('你找到了出口！', 5);
+  } else {
+    playDeathSound();
+    overlay.querySelector('h1').textContent = '你被吞噬了';
+    overlay.querySelector('h1').style.color = '#c0392b';
+    overlay.querySelector('.subtitle').textContent = '后室又多了一个迷失的灵魂';
+    overlay.querySelector('.btn').textContent = '重新开始';
+    overlay.querySelector('.hint').textContent = '';
+    showMessage('有什么东西抓住了你...', 4);
+  }
+
+  // Reset button
+  const btn = overlay.querySelector('.btn');
+  btn.onclick = () => {
+    overlay.querySelector('h1').textContent = 'BACKROOMS';
+    overlay.querySelector('h1').style.color = '#c8a84e';
+    overlay.querySelector('.subtitle').textContent = '后 室';
+    overlay.querySelector('.btn').textContent = '进 入';
+    overlay.querySelector('.hint').textContent = 'WASD 移动 · SHIFT 奔跑 · 寻找出口';
+    stopAudioNode('drone');
+    stopAudioNode('hum');
+    startGame();
+  };
+}
+
+// ============ INITIALIZATION ============
+document.getElementById('start-btn').addEventListener('click', () => {
+  startGame();
+});
+
+// Initial render
+ctx.fillStyle = '#000';
+ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+// Start loop
+requestAnimationFrame(gameLoop);
+
+console.log('🏚️  Backrooms - 后室');
+console.log('   WASD: 移动 | SHIFT: 奔跑 | 找到发光的出口');
+console.log('   注意身后的声音...');
+</script>
+</body>
+</html>
