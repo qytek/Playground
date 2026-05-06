@@ -920,24 +920,18 @@ function drawFloorPattern(rx, ry, offsetX, offsetY) {
 }
 
 function drawLighting(offsetX, offsetY) {
-  // Draw darkness / fog of war
+  // Draw darkness / fog of war via radial gradient around player
+  // Transparent center reveals the lit area; opaque edges create darkness
   const p = player;
   const px = p.x - offsetX;
   const py = p.y - offsetY;
-
-  // Create radial gradient for player's light
   const lightRadius = TILE * VISION_RADIUS;
 
-  // First, cover everything in dark
-  ctx.fillStyle = 'rgba(0,0,0,0.85)';
-  ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-  // Cut out light around player
-  const gradient = ctx.createRadialGradient(px, py, lightRadius * 0.3, px, py, lightRadius);
+  const gradient = ctx.createRadialGradient(px, py, lightRadius * 0.2, px, py, lightRadius);
   gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(0.5, 'rgba(0,0,0,0)');
-  gradient.addColorStop(0.8, 'rgba(0,0,0,0.4)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0.85)');
+  gradient.addColorStop(0.45, 'rgba(0,0,0,0)');
+  gradient.addColorStop(0.75, 'rgba(0,0,0,0.55)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0.90)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
@@ -1032,6 +1026,7 @@ function drawEntity(offsetX, offsetY) {
 }
 
 function drawHUD() {
+  if (gameState !== 'playing' || !player) return;
   document.getElementById('sanity-fill').style.width = player.sanity + '%';
   document.getElementById('stamina-fill').style.width = player.stamina + '%';
 
