@@ -158,7 +158,7 @@
     <h1>BACKROOMS</h1>
     <div class="subtitle">后 室</div>
     <button class="btn" id="start-btn">进 入</button>
-    <div class="hint">WASD 移动 · SHIFT 奔跑 · 寻找出口</div>
+    <div class="hint">WASD 移动 · SHIFT 奔跑 · E 喝杏仁水 · 寻找出口</div>
   </div>
 </div>
 
@@ -214,6 +214,7 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 const roomGraph = {};   // key: "rx,ry" -> { n,s,e,w: bool }
 const roomTypes = {};   // key: "rx,ry" -> "normal"|"dark"|"flicker"|"exit"|"start"
 const visitedRooms = {}; // key: "rx,ry" -> bool (generated tiles)
+const roomItems = {};   // key: "rx,ry" -> { type: 'almond_water', picked: bool }
 
 function rkey(rx, ry) { return rx + ',' + ry; }
 
@@ -222,6 +223,7 @@ function generateMaze() {
   for (const k in roomGraph) delete roomGraph[k];
   for (const k in roomTypes) delete roomTypes[k];
   for (const k in visitedRooms) delete visitedRooms[k];
+  for (const k in roomItems) delete roomItems[k];
 
   // Initialize all cells with all walls
   for (let x = 0; x < MAP_ROOMS; x++) {
@@ -313,6 +315,17 @@ function generateMaze() {
   }
   roomTypes[rkey(farRx, farRy)] = 'exit';
 
+  // 10% chance of almond water per room (exclude start and exit)
+  for (let x = 0; x < MAP_ROOMS; x++) {
+    for (let y = 0; y < MAP_ROOMS; y++) {
+      const rk = rkey(x, y);
+      if (roomTypes[rk] === 'start' || roomTypes[rk] === 'exit') continue;
+      if (rng(x + 300, y + 300) < 0.20) {
+        roomItems[rk] = { type: 'almond_water', picked: false };
+      }
+    }
+  }
+
   return { startRx, startRy, exitRx: farRx, exitRy: farRy };
 }
 
@@ -364,6 +377,11 @@ function generateRoomTiles(rx, ry) {
   // Special: exit room glow
   if (rtype === 'exit') {
     tiles[mid][mid] = 4; // exit marker
+  }
+
+  // Almond water item (tile type 5)
+  if (roomItems[key] && !roomItems[key].picked) {
+    tiles[mid][mid - 1] = 5;
   }
 
   visitedRooms[key] = tiles;
@@ -589,6 +607,8 @@ function createPlayer(wx, wy) {
     stamina: 100,
     facing: 0, // radians
     footstepAccum: 0,
+    animFrame: 0,
+    animTimer: 0,
   };
 }
 
@@ -640,8 +660,18 @@ function updatePlayer(dt) {
       p.footstepAccum -= interval;
       playFootstep();
     }
+
+    // Sprite animation — advance frame based on distance moved
+    p.animTimer += spd * dt * 60;
+    const animInterval = 3;
+    if (p.animTimer >= animInterval) {
+      p.animTimer -= animInterval;
+      p.animFrame = (p.animFrame + 1) % 9;
+    }
   } else {
     p.footstepAccum = 0;
+    p.animFrame = 0;
+    p.animTimer = 0;
   }
 
   // Check current room
@@ -662,9 +692,17 @@ function updatePlayer(dt) {
     p.sanity = Math.max(0, p.sanity - 2 * dt);
   }
 
-  // Sanity slow regen in safe conditions
-  if (rtype !== 'dark' && edist > TILE * 10 && p.sanity < 100) {
-    p.sanity = Math.min(100, p.sanity + 1 * dt);
+  // Check for almond water pickup (press E)
+  const { rx: prx2, ry: pry2 } = worldToRoom(p.x, p.y);
+  const itemKey = rkey(prx2, pry2);
+  const item = roomItems[itemKey];
+  if (item && !item.picked && keys['KeyE']) {
+    item.picked = true;
+    delete visitedRooms[itemKey]; // clear tile cache so bottle disappears
+    p.sanity = Math.min(100, p.sanity + 30);
+    showMessage('你喝下了杏仁水，恢复了 30 点理智', 2.5);
+    playFootstep();
+    keys['KeyE'] = false; // prevent repeat pickup
   }
 
   // Check exit
@@ -831,6 +869,32 @@ const C_LIGHT_ON = '#fffaee';
 const C_LIGHT_OFF = '#3a3020';
 const C_DOORWAY = '#5a4a28';
 const C_EXIT_GLOW = '#aaddff';
+// === SPRITE SHEET ===
+let spriteSheet = null;
+let spriteFW = 0, spriteFH = 0;
+const SPRITE_COLS = 3;
+const SPRITE_ROWS = 3;
+const SPRITE_DRAW_SIZE = 24;
+
+(function preloadSprite() {
+  spriteSheet = new Image();
+  spriteSheet.onload = () => {
+    spriteFW = spriteSheet.width / SPRITE_COLS;
+    spriteFH = spriteSheet.height / SPRITE_ROWS;
+  };
+  spriteSheet.src = 'img/banana/walk.png';
+})();
+
+// Almond water bottle
+let almondBottleImg = null;
+(function preloadAlmondBottle() {
+  almondBottleImg = new Image();
+  almondBottleImg.src = 'img/almond_bottle.png';
+})();
+
+// Debug mode — toggle with Y key
+let debugMode = false;
+
 const C_PLAYER = '#dde';
 const C_ENTITY = '#111';
 const C_ENTITY_EYE = '#f44';
@@ -900,6 +964,18 @@ function drawFloorPattern(rx, ry, offsetX, offsetY) {
           ctx.fillStyle = `rgba(200,240,255,${0.5 + pulse * 0.3})`;
           ctx.fillRect(Math.floor(px), Math.floor(py), 2, 2);
         }
+
+      } else if (tile === 5) {
+        // Almond water bottle
+        ctx.fillStyle = C_FLOOR;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+        if (almondBottleImg && almondBottleImg.complete) {
+          ctx.drawImage(almondBottleImg, Math.floor(sx2 + 3), Math.floor(sy2 + 1), 10, 12);
+        }
+        // Subtle glow
+        const pulse2 = 0.5 + 0.5 * Math.sin(frameCount * 0.04);
+        ctx.fillStyle = `rgba(150,200,240,${0.15 + pulse2 * 0.1})`;
+        ctx.fillRect(Math.floor(sx2 + 3), Math.floor(sy2 + 1), 10, 12);
 
       } else {
         // Floor with subtle variation
@@ -982,20 +1058,35 @@ function drawPlayer(offsetX, offsetY) {
   const p = player;
   const sx = Math.floor(p.x - offsetX);
   const sy = Math.floor(p.y - offsetY);
+  const size = SPRITE_DRAW_SIZE;
+  const half = size / 2;
 
-  // Body
-  ctx.fillStyle = C_PLAYER;
-  ctx.fillRect(sx - 3, sy - 4, 6, 8);
+  if (spriteSheet && spriteSheet.complete && spriteFW > 0) {
+    const col = p.animFrame % SPRITE_COLS;
+    const row = Math.floor(p.animFrame / SPRITE_COLS);
 
-  // Head
-  ctx.fillStyle = '#ffe';
-  ctx.fillRect(sx - 2, sy - 5, 4, 3);
-
-  // Eyes (facing direction)
-  const ex = Math.cos(p.facing) * 1.5;
-  const ey = Math.sin(p.facing) * 1.5;
-  ctx.fillStyle = '#222';
-  ctx.fillRect(Math.floor(sx + ex - 0.5), Math.floor(sy - 4.5 + ey), 1, 1);
+    ctx.save();
+    // Moving left (cos(facing) < ~-0.1) → mirror horizontally
+    if (Math.cos(p.facing) < -0.1) {
+      ctx.translate(sx, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(spriteSheet,
+        col * spriteFW, row * spriteFH, spriteFW, spriteFH,
+        -half, sy - half, size, size);
+    } else {
+      ctx.drawImage(spriteSheet,
+        col * spriteFW, row * spriteFH, spriteFW, spriteFH,
+        sx - half, sy - half, size, size);
+    }
+    ctx.restore();
+  } else {
+    // Fallback: simple pixel character while sprite loads
+    ctx.fillStyle = '#ffe';
+    ctx.fillRect(sx - 3, sy - 4, 6, 8);
+    ctx.fillStyle = '#222';
+    const ex = Math.cos(p.facing) * 1.5;
+    ctx.fillRect(Math.floor(sx + ex - 0.5), Math.floor(sy - 4.5), 1, 1);
+  }
 }
 
 function drawEntity(offsetX, offsetY) {
@@ -1057,7 +1148,13 @@ function drawHUD() {
     hint.textContent = '这里太暗了...';
     hint.style.color = '#666';
   } else {
-    hint.textContent = '';
+    const itemHere = roomItems[rkey(rx, ry)];
+    if (itemHere && !itemHere.picked) {
+      hint.textContent = '地上有一瓶杏仁水 [E] 饮用';
+      hint.style.color = '#7ec8f8';
+    } else {
+      hint.textContent = '';
+    }
   }
 }
 
@@ -1132,6 +1229,48 @@ function render() {
   // Draw lighting overlay
   drawLighting(offsetX, offsetY);
 
+  // Debug: direction arrow to exit
+  if (debugMode && mazeData) {
+    const exitWX = mazeData.exitRx * ROOM_PX + ROOM_PX / 2;
+    const exitWY = mazeData.exitRy * ROOM_PX + ROOM_PX / 2;
+    const dx = exitWX - player.x;
+    const dy = exitWY - player.y;
+    const distToExit = Math.sqrt(dx * dx + dy * dy);
+    if (distToExit > 0) {
+      const angle = Math.atan2(dy, dx);
+      const px = INTERNAL_W / 2;
+      const py = INTERNAL_H / 2;
+      const arrowLen = 40;
+      const arrowX = px + Math.cos(angle) * arrowLen;
+      const arrowY = py + Math.sin(angle) * arrowLen;
+
+      // Arrow line
+      ctx.strokeStyle = 'rgba(100,255,100,0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(arrowX, arrowY);
+      ctx.stroke();
+
+      // Arrow head
+      const headLen = 10;
+      const a1 = angle + Math.PI * 0.75;
+      const a2 = angle - Math.PI * 0.75;
+      ctx.fillStyle = 'rgba(100,255,100,0.7)';
+      ctx.beginPath();
+      ctx.moveTo(arrowX, arrowY);
+      ctx.lineTo(arrowX + Math.cos(a1) * headLen, arrowY + Math.sin(a1) * headLen);
+      ctx.lineTo(arrowX + Math.cos(a2) * headLen, arrowY + Math.sin(a2) * headLen);
+      ctx.closePath();
+      ctx.fill();
+
+      // Distance label
+      ctx.fillStyle = 'rgba(100,255,100,0.7)';
+      ctx.font = '10px monospace';
+      ctx.fillText(Math.floor(distToExit / ROOM_PX) + ' rooms', px + 14, py - 6);
+    }
+  }
+
   // Sanity vignette at low sanity
   if (player.sanity < 40) {
     const alpha = (40 - player.sanity) / 40 * 0.5;
@@ -1179,6 +1318,12 @@ let lastTime = 0;
 
 function update(dt) {
   if (gameState !== 'playing') return;
+
+  // Toggle debug mode with Y key
+  if (keys['KeyY']) {
+    keys['KeyY'] = false;
+    debugMode = !debugMode;
+  }
 
   frameCount++;
   updatePlayer(dt);
@@ -1286,7 +1431,7 @@ function endGame(reason) {
     overlay.querySelector('h1').style.color = '#c8a84e';
     overlay.querySelector('.subtitle').textContent = '后 室';
     overlay.querySelector('.btn').textContent = '进 入';
-    overlay.querySelector('.hint').textContent = 'WASD 移动 · SHIFT 奔跑 · 寻找出口';
+    overlay.querySelector('.hint').textContent = 'WASD 移动 · SHIFT 奔跑 · E 喝杏仁水 · 寻找出口';
     stopAudioNode('drone');
     stopAudioNode('hum');
     startGame();
