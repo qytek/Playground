@@ -128,40 +128,55 @@ canvas {
   margin-top: 16px;
   letter-spacing: 1px;
 }
-/* Touch controls — hidden by default, shown on touch devices */
+/* ===== Touch Controls ===== */
+/* Hidden by default, shown on touch devices only */
 #touch-controls {
   display: none;
   position: fixed;
-  bottom: 20px;
+  bottom: 0;
   left: 0;
   right: 0;
   z-index: 100;
   pointer-events: none;
+  /* Responsive padding: scales with screen */
+  padding: clamp(8px, 1.5vh, 20px) clamp(10px, 4vw, 32px);
 }
-body.touch-device #touch-controls {
+body.touch-device.playing #touch-controls {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 0 20px;
 }
+
+/* Landscape: tighter padding since vertical space is scarce */
+@media (orientation: landscape) {
+  #touch-controls {
+    padding-bottom: clamp(4px, 1vh, 12px);
+    padding-left: clamp(12px, 5vw, 40px);
+    padding-right: clamp(12px, 5vw, 40px);
+  }
+}
+
+/* ---- D-pad grid ---- */
 .touch-dpad {
   display: grid;
-  grid-template-columns: 56px 56px 56px;
-  grid-template-rows: 56px 56px 56px;
-  gap: 2px;
+  grid-template-columns: repeat(3, clamp(44px, 12vw, 70px));
+  grid-template-rows:    repeat(3, clamp(44px, 12vw, 70px));
+  gap: clamp(1px, 0.3vw, 3px);
 }
 #btn-up    { grid-column: 2; grid-row: 1; }
 #btn-left  { grid-column: 1; grid-row: 2; }
 #btn-right { grid-column: 3; grid-row: 2; }
 #btn-down  { grid-column: 2; grid-row: 3; }
+
+/* ---- Shared button style ---- */
 .touch-btn {
-  width: 56px;
-  height: 56px;
-  border: 1px solid rgba(255,255,255,0.25);
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.6);
-  font-size: 22px;
-  border-radius: 8px;
+  width: clamp(44px, 12vw, 70px);
+  height: clamp(44px, 12vw, 70px);
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.5);
+  font-size: clamp(16px, 4vw, 26px);
+  border-radius: clamp(6px, 1vw, 10px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -170,18 +185,24 @@ body.touch-device #touch-controls {
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
-.touch-btn:active, .touch-btn.active {
-  background: rgba(255,255,255,0.22);
-  border-color: rgba(255,255,255,0.5);
+.touch-btn:active,
+.touch-btn.active {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.45);
   color: #fff;
 }
+
+/* ---- RUN button (right side, circular, larger) ---- */
 .touch-run {
-  width: 72px;
-  height: 72px;
+  width:  clamp(60px, 15vw, 84px);
+  height: clamp(60px, 15vw, 84px);
   border-radius: 50%;
-  font-size: 13px;
+  font-size: clamp(11px, 2.5vw, 15px);
+  font-weight: bold;
   letter-spacing: 1px;
   font-family: 'Courier New', monospace;
-  margin-bottom: 40px;
+  margin-bottom: clamp(20px, 5vw, 50px);
+  border-color: rgba(255,255,255,0.3);
 }
