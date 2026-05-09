@@ -514,7 +514,7 @@ function drawHUD() {
   } else {
     const itemHere = roomItems[rkey(rx, ry)];
     if (itemHere && !itemHere.picked) {
-      hint.textContent = '地上有一瓶杏仁水 [E] 饮用';
+      hint.textContent = '地上有一瓶杏仁水';
       hint.style.color = '#7ec8f8';
     } else {
       hint.textContent = '';

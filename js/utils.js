@@ -44,7 +44,20 @@ function getTile(wx, wy) {
 
 function isSolid(wx, wy) {
   const t = getTile(wx, wy);
-  return t === 1 || t === 6; // wall or car
+  if (t === 1) return true; // wall
+
+  // Check car collision (Level 2 parking garage)
+  const { rx, ry, tx, ty } = worldToRoom(wx, wy);
+  const cars = carData[rkey(rx, ry)];
+  if (cars) {
+    for (const car of cars) {
+      if (tx >= car.tx && tx < car.tx + car.w && ty >= car.ty && ty < car.ty + car.h) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function shuffle(arr) {

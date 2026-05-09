@@ -94,17 +94,16 @@ function updatePlayer(dt) {
     }
   }
 
-  // Check for almond water pickup (press E)
+  // Pick up almond water on contact (auto)
   const { rx: prx2, ry: pry2 } = worldToRoom(p.x, p.y);
   const itemKey = rkey(prx2, pry2);
   const item = roomItems[itemKey];
-  if (item && !item.picked && keys['KeyE']) {
+  if (item && !item.picked) {
     item.picked = true;
     delete visitedRooms[itemKey];
     p.sanity = Math.min(100, p.sanity + 30);
     showMessage('你喝下了杏仁水，恢复了 30 点理智', 2.5);
     playFootstep();
-    keys['KeyE'] = false;
   }
 
   // Check exit tile

@@ -132,7 +132,7 @@ function endGame(reason) {
     overlay.querySelector('h1').style.color = '#c8a84e';
     overlay.querySelector('.subtitle').textContent = '后 室';
     overlay.querySelector('.btn').textContent = '进 入';
-    overlay.querySelector('.hint').textContent = 'WASD 移动 · SHIFT 奔跑 · E 喝杏仁水 · 寻找出口';
+    overlay.querySelector('.hint').textContent = 'WASD 移动 · SHIFT 奔跑 · 寻找出口';
     stopAudioNode('drone');
     stopAudioNode('hum');
     startGame();
