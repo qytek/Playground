@@ -360,17 +360,27 @@ function drawLighting(offsetX, offsetY) {
 
   // Tighter fog on level 2
   if (currentLevel === 2) {
-    // Full-screen dark fog first (very dim without flashlight)
-    if (frameCount % 60 === 0) console.log('[lighting] fog radius:', (lightRadius * 0.5).toFixed(0), 'cone length:', (TILE * VISION_RADIUS * 2).toFixed(0));
-    const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, lightRadius * 0.5);
-    fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
-    fogGrad.addColorStop(0.25, 'rgba(0,0,0,0.9)');
-    fogGrad.addColorStop(0.5, 'rgba(0,0,0,0.95)');
-    fogGrad.addColorStop(1, 'rgba(0,0,0,1)');
-    ctx.fillStyle = fogGrad;
+    // Solid black everywhere first
+    ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Smooth cone light on top (only with flashlight) — redraw lighter fog inside cone
+    // Draw fog as a visible CIRCLE (clipped so radius creates a hard edge)
+    const fogRadius = lightRadius * 0.5;
+    if (frameCount % 60 === 0) console.log('[lighting] fog radius:', fogRadius.toFixed(0), 'cone length:', (TILE * VISION_RADIUS * 2).toFixed(0));
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(px, py, fogRadius, 0, Math.PI * 2);
+    ctx.clip();
+    const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, fogRadius);
+    fogGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    fogGrad.addColorStop(0.3, 'rgba(0,0,0,0.3)');
+    fogGrad.addColorStop(0.6, 'rgba(0,0,0,0.6)');
+    fogGrad.addColorStop(1, 'rgba(0,0,0,0.9)');
+    ctx.fillStyle = fogGrad;
+    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+    ctx.restore();
+
+    // Flashlight cone on top — clipped triangle with its own radius
     if (player && player.hasFlashlight) {
       const angle = player.facing;
       const coneLength = TILE * VISION_RADIUS * 2;
@@ -390,20 +400,20 @@ function drawLighting(offsetX, offsetY) {
       ctx.closePath();
       ctx.clip();
 
-      // Replace dark fog with much lighter values — cone punches through darkness
+      // Bright area inside cone, fading toward tip
       const coneGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
-      coneGrad.addColorStop(0, 'rgba(0,0,0,0.02)');
-      coneGrad.addColorStop(0.3, 'rgba(0,0,0,0.04)');
-      coneGrad.addColorStop(0.5, 'rgba(0,0,0,0.12)');
-      coneGrad.addColorStop(0.7, 'rgba(0,0,0,0.25)');
-      coneGrad.addColorStop(1, 'rgba(0,0,0,0.45)');
+      coneGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      coneGrad.addColorStop(0.3, 'rgba(0,0,0,0.05)');
+      coneGrad.addColorStop(0.5, 'rgba(0,0,0,0.15)');
+      coneGrad.addColorStop(0.7, 'rgba(0,0,0,0.3)');
+      coneGrad.addColorStop(1, 'rgba(0,0,0,0.5)');
       ctx.fillStyle = coneGrad;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
       // Warm tint near player
-      const warmGrad = ctx.createRadialGradient(px, py, 0, px, py, TILE * 4);
-      warmGrad.addColorStop(0, 'rgba(255,250,220,0.06)');
-      warmGrad.addColorStop(0.4, 'rgba(255,240,200,0.03)');
+      const warmGrad = ctx.createRadialGradient(px, py, 0, px, py, TILE * 5);
+      warmGrad.addColorStop(0, 'rgba(255,250,220,0.08)');
+      warmGrad.addColorStop(0.4, 'rgba(255,240,200,0.04)');
       warmGrad.addColorStop(1, 'rgba(255,240,200,0)');
       ctx.fillStyle = warmGrad;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
