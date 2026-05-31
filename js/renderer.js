@@ -341,11 +341,16 @@ function drawLighting(offsetX, offsetY) {
   const py = p.y - offsetY;
   const lightRadius = TILE * VISION_RADIUS;
 
-  const gradient = ctx.createRadialGradient(px, py, lightRadius * 0.2, px, py, lightRadius);
+  // Tighter fog on level 2
+  const innerStop = currentLevel === 2 ? 0.15 : 0.2;
+  const midStop = currentLevel === 2 ? 0.3 : 0.45;
+  const outerStop = currentLevel === 2 ? 0.55 : 0.75;
+  const outerAlpha = currentLevel === 2 ? 0.92 : 0.90;
+  const gradient = ctx.createRadialGradient(px, py, lightRadius * innerStop, px, py, lightRadius);
   gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(0.45, 'rgba(0,0,0,0)');
-  gradient.addColorStop(0.75, 'rgba(0,0,0,0.55)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0.90)');
+  gradient.addColorStop(midStop, 'rgba(0,0,0,0)');
+  gradient.addColorStop(outerStop, `rgba(0,0,0,0.65)`);
+  gradient.addColorStop(1, `rgba(0,0,0,${outerAlpha})`);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
@@ -361,7 +366,7 @@ function drawLighting(offsetX, offsetY) {
       const roomWX = rx * ROOM_PX - offsetX;
       const roomWY = ry * ROOM_PX - offsetY;
 
-      let alpha = currentLevel === 2 ? 0.12 : 0.08;
+      let alpha = currentLevel === 2 ? 0.02 : 0.08;
       if (rtype === 'flicker') {
         const flicker = Math.sin(frameCount * 0.3 + hash(rx, ry)) * 0.5 + 0.5;
         const spike = Math.sin(frameCount * 1.7 + hash(rx + 50, ry)) > 0.85 ? 0 : 1;
@@ -391,6 +396,46 @@ function drawLighting(offsetX, offsetY) {
       ctx.fillStyle = glowColor;
       ctx.fillRect(Math.floor(exitWX), Math.floor(exitWY), ROOM_PX, ROOM_PX);
     }
+  }
+
+  // Flashlight spotlight (Level 2)
+  if (currentLevel === 2 && player && player.hasFlashlight) {
+    const fx = px;
+    const fy = py;
+    const angle = player.facing;
+    const coneLength = TILE * 6;
+    const coneHalfAngle = Math.PI / 6;
+    const steps = 12;
+
+    ctx.save();
+    // Draw cone as a series of translucent triangles
+    for (let i = 0; i < steps; i++) {
+      const t0 = i / steps;
+      const t1 = (i + 1) / steps;
+      const a0 = angle - coneHalfAngle + t0 * coneHalfAngle * 2;
+      const a1 = angle - coneHalfAngle + t1 * coneHalfAngle * 2;
+      const r0 = coneLength * (0.3 + 0.7 * t0);
+      const r1 = coneLength * (0.3 + 0.7 * t1);
+
+      const alpha = 0.12 - (t0 + t1) / 2 * 0.06;
+
+      ctx.beginPath();
+      ctx.moveTo(fx, fy);
+      ctx.lineTo(fx + Math.cos(a0) * r0, fy + Math.sin(a0) * r0);
+      ctx.lineTo(fx + Math.cos(a1) * r1, fy + Math.sin(a1) * r1);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(255,240,200,${alpha})`;
+      ctx.fill();
+    }
+
+    // Hot spot at center
+    const hotGrad = ctx.createRadialGradient(fx, fy, 0, fx, fy, TILE * 2);
+    hotGrad.addColorStop(0, 'rgba(255,250,220,0.15)');
+    hotGrad.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.fillStyle = hotGrad;
+    ctx.fillRect(fx - TILE * 2, fy - TILE * 2, TILE * 4, TILE * 4);
+
+    ctx.restore();
   }
 }
 
