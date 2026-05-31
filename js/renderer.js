@@ -360,7 +360,7 @@ function drawLighting(offsetX, offsetY) {
 
   // Level 2 lighting: fog overlay + optional flashlight cone window
   if (currentLevel === 2) {
-    const fogRadius = lightRadius * 0.5;
+    const fogRadius = lightRadius * 0.75;
     const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, fogRadius);
     fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
     fogGrad.addColorStop(1, 'rgba(0,0,0,1)');
@@ -368,7 +368,7 @@ function drawLighting(offsetX, offsetY) {
     // Per-pixel spotlight: pixel-perfect cone with angle+distance falloff
     if (player && player.hasFlashlight) {
       const angle = player.facing;
-      const beamLen = TILE * VISION_RADIUS;
+      const beamLen = TILE * VISION_RADIUS * 1.5;
       const halfAngle = Math.PI / 5;
       const cosHalf = Math.cos(halfAngle);
 
@@ -392,7 +392,7 @@ function drawLighting(offsetX, offsetY) {
       const spy = py * scale;
       const bl = beamLen * scale;
       const fogCenter = 0.85;
-      const fogRadius = (lightRadius * 0.5) * scale;
+      const fogRadius = (lightRadius * 0.75) * scale;
 
       for (let y = 0; y < oh; y++) {
         for (let x = 0; x < ow; x++) {
