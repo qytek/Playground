@@ -405,25 +405,37 @@ function drawLighting(offsetX, offsetY) {
       ctx.closePath();
       ctx.clip();
 
-      // Fog falloff: darkness creeps back following 1/(1+decay*t^2)
-      // maxFog=0.55, decay=10 → 0,0.13,0.3,0.42,0.49,0.52 at t=0,0.2,0.4,0.6,0.8,1.0
+      // Fog falloff: inverse square f(t) = maxFog * (1 - 1/(1 + decay*t^2))
+      // maxFog=0.6, decay=8, 10-stop piecewise approximation
       const fogFalloff = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
-      fogFalloff.addColorStop(0, 'rgba(0,0,0,0)');
-      fogFalloff.addColorStop(0.2, 'rgba(0,0,0,0.13)');
-      fogFalloff.addColorStop(0.4, 'rgba(0,0,0,0.30)');
-      fogFalloff.addColorStop(0.6, 'rgba(0,0,0,0.42)');
-      fogFalloff.addColorStop(0.8, 'rgba(0,0,0,0.49)');
-      fogFalloff.addColorStop(1, 'rgba(0,0,0,0.52)');
+      fogFalloff.addColorStop(0.0, 'rgba(0,0,0,0)');
+      fogFalloff.addColorStop(0.1, 'rgba(0,0,0,0.044)');
+      fogFalloff.addColorStop(0.2, 'rgba(0,0,0,0.145)');
+      fogFalloff.addColorStop(0.3, 'rgba(0,0,0,0.251)');
+      fogFalloff.addColorStop(0.4, 'rgba(0,0,0,0.337)');
+      fogFalloff.addColorStop(0.5, 'rgba(0,0,0,0.400)');
+      fogFalloff.addColorStop(0.6, 'rgba(0,0,0,0.445)');
+      fogFalloff.addColorStop(0.7, 'rgba(0,0,0,0.478)');
+      fogFalloff.addColorStop(0.8, 'rgba(0,0,0,0.502)');
+      fogFalloff.addColorStop(0.9, 'rgba(0,0,0,0.520)');
+      fogFalloff.addColorStop(1.0, 'rgba(0,0,0,0.533)');
       ctx.fillStyle = fogFalloff;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-      // Warm glow: 1/(1+decay*t^2), maxWarm=0.06, decay=15
+      // Warm glow: inverse square f(t) = maxWarm / (1 + decay*t^2)
+      // maxWarm=0.08, decay=15, 10-stop approximation
       const warmGlow = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
-      warmGlow.addColorStop(0, 'rgba(255,245,210,0.06)');
-      warmGlow.addColorStop(0.2, 'rgba(255,242,205,0.04)');
-      warmGlow.addColorStop(0.4, 'rgba(255,240,200,0.02)');
-      warmGlow.addColorStop(0.6, 'rgba(255,238,195,0.01)');
-      warmGlow.addColorStop(1, 'rgba(255,238,195,0)');
+      warmGlow.addColorStop(0.0, 'rgba(255,245,210,0.080)');
+      warmGlow.addColorStop(0.1, 'rgba(255,245,210,0.070)');
+      warmGlow.addColorStop(0.2, 'rgba(255,242,205,0.050)');
+      warmGlow.addColorStop(0.3, 'rgba(255,242,205,0.034)');
+      warmGlow.addColorStop(0.4, 'rgba(255,240,200,0.024)');
+      warmGlow.addColorStop(0.5, 'rgba(255,240,200,0.017)');
+      warmGlow.addColorStop(0.6, 'rgba(255,238,195,0.013)');
+      warmGlow.addColorStop(0.7, 'rgba(255,238,195,0.010)');
+      warmGlow.addColorStop(0.8, 'rgba(255,238,195,0.008)');
+      warmGlow.addColorStop(0.9, 'rgba(255,238,195,0.006)');
+      warmGlow.addColorStop(1.0, 'rgba(255,238,195,0.005)');
       ctx.fillStyle = warmGlow;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
