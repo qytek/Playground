@@ -369,7 +369,7 @@ function drawLighting(offsetX, offsetY) {
     ctx.fillStyle = fogGrad;
     ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Smooth cone light on top (only with flashlight)
+    // Smooth cone light on top (only with flashlight) — redraw lighter fog inside cone
     if (player && player.hasFlashlight) {
       const angle = player.facing;
       const coneLength = TILE * VISION_RADIUS;
@@ -389,25 +389,23 @@ function drawLighting(offsetX, offsetY) {
       ctx.closePath();
       ctx.clip();
 
-      // Smoothly erase fog inside the cone using destination-out
-      ctx.globalCompositeOperation = 'destination-out';
-      const eraseGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength * TILE);
-      eraseGrad.addColorStop(0, 'rgba(0,0,0,0.9)');
-      eraseGrad.addColorStop(0.25, 'rgba(0,0,0,0.7)');
-      eraseGrad.addColorStop(0.5, 'rgba(0,0,0,0.4)');
-      eraseGrad.addColorStop(0.75, 'rgba(0,0,0,0.15)');
-      eraseGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = eraseGrad;
+      // Overwrite dark fog with much lighter fog: clear at center, slightly foggy at edge
+      const coneGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength * TILE);
+      coneGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      coneGrad.addColorStop(0.2, 'rgba(0,0,0,0.03)');
+      coneGrad.addColorStop(0.4, 'rgba(0,0,0,0.1)');
+      coneGrad.addColorStop(0.65, 'rgba(0,0,0,0.25)');
+      coneGrad.addColorStop(1, 'rgba(0,0,0,0.5)');
+      ctx.fillStyle = coneGrad;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-      ctx.globalCompositeOperation = 'source-over';
 
-      // Subtle warm glow at center
-      const warmGrad = ctx.createRadialGradient(px, py, 0, px, py, TILE * 3);
+      // Warm tint near player
+      const warmGrad = ctx.createRadialGradient(px, py, 0, px, py, TILE * 4);
       warmGrad.addColorStop(0, 'rgba(255,250,220,0.06)');
-      warmGrad.addColorStop(0.5, 'rgba(255,240,200,0.02)');
+      warmGrad.addColorStop(0.4, 'rgba(255,240,200,0.03)');
       warmGrad.addColorStop(1, 'rgba(255,240,200,0)');
       ctx.fillStyle = warmGrad;
-      ctx.fillRect(px - TILE * 4, py - TILE * 4, TILE * 8, TILE * 8);
+      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
       ctx.restore();
     }
