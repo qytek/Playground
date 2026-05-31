@@ -62,7 +62,9 @@ Open `index.html` directly in a browser. No build step, no dev server required. 
 
 **Audio (`js/audio.js`):** Web Audio API with `AudioContext`. Procedural noise for ambient drone and fluorescent hum. One-shot samples for footsteps (pitch-randomized), heartbeat, entity growls, death, exit jingle.
 
-**Fog of war (`js/renderer.js`):** `drawLighting()` creates a radial gradient mask centered on the player. Unvisited rooms render dark. Room lights add warm ambient glow. Flicker rooms use per-frame sine waves for light instability.
+**Fog of war (`js/renderer.js`):** `drawLighting()` per-level lighting. Level 1 uses a radial gradient mask centered on the player. Level 2 uses a per-pixel software shader (ImageData) with a GLSL-style spotlight formula: smoothstep angular falloff between inner (22.5 degrees) and outer (36 degrees) cone, plus distance falloff `(1-d)^1.5`. Spotlight built on an offscreen canvas at half resolution, upscaled smoothly. Player starts Level 2 with `hasFlashlight = true`. Without flashlight, Level 2 uses a tight radial fog circle (96px radius).
+
+**Items:** Almond water (tile 5 L1, tile 8 L2) restores +30 sanity. Flashlight (tile 7, L2 only) auto-picked up but also given by default. Items placed at `tiles[2][2]` in L2 (top-left corner, safe from car hitboxes). Pickup uses `getTile()` for tile-precise detection.
 
 **Touch controls:** D-pad (4 directional buttons) + run button. Visible/hidden via CSS media queries. Maps to the same `keys` object as keyboard input.
 
