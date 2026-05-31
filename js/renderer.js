@@ -375,27 +375,28 @@ function drawLighting(offsetX, offsetY) {
     osc.fillStyle = fogGrad;
     osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Fan via stacked gradients: circles at increasing distances with increasing radii
+    // Spotlight: stacked narrow gradients with sharp falloff
     if (player && player.hasFlashlight) {
       const angle = player.facing;
       const beamLen = TILE * VISION_RADIUS;
-      const halfAngle = Math.PI / 5;
-      const rings = 8;
+      const halfAngle = Math.PI / 7;  // ~26 degrees each side, narrower beam
+      const rings = 10;
 
       osc.globalCompositeOperation = 'destination-out';
 
       for (let i = 0; i < rings; i++) {
-        const t = (i + 0.5) / rings;  // distance along beam (0..1)
+        const t = (i + 0.5) / rings;
         const cx = px + Math.cos(angle) * beamLen * t;
         const cy = py + Math.sin(angle) * beamLen * t;
-        const r = beamLen * t * Math.tan(halfAngle) * 1.3; // slightly larger for overlap
+        const r = beamLen * t * Math.tan(halfAngle) * 1.2;
 
-        if (r < 4) continue; // skip tiny circles near player
+        if (r < 3) continue;
 
         const g = osc.createRadialGradient(cx, cy, 0, cx, cy, r);
-        g.addColorStop(0, 'rgba(0,0,0,0.75)');
-        g.addColorStop(0.3, 'rgba(0,0,0,0.5)');
-        g.addColorStop(0.6, 'rgba(0,0,0,0.2)');
+        g.addColorStop(0, 'rgba(0,0,0,0.8)');
+        g.addColorStop(0.2, 'rgba(0,0,0,0.6)');
+        g.addColorStop(0.5, 'rgba(0,0,0,0.2)');
+        g.addColorStop(0.8, 'rgba(0,0,0,0.03)');
         g.addColorStop(1, 'rgba(0,0,0,0)');
         osc.fillStyle = g;
         osc.fillRect(cx - r, cy - r, r * 2, r * 2);
