@@ -358,29 +358,17 @@ function drawLighting(offsetX, offsetY) {
   const py = p.y - offsetY;
   const lightRadius = TILE * VISION_RADIUS;
 
-  // Tighter fog on level 2
+  // Level 2 lighting: fog overlay + optional flashlight cone
   if (currentLevel === 2) {
-    // Solid black everywhere first
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-    // Draw fog as a visible CIRCLE (clipped so radius creates a hard edge)
+    // Draw fog over everything — tight circle of visibility
     const fogRadius = lightRadius * 0.5;
-    if (frameCount % 60 === 0) console.log('[lighting] fog radius:', fogRadius.toFixed(0), 'cone length:', (TILE * VISION_RADIUS * 2).toFixed(0));
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(px, py, fogRadius, 0, Math.PI * 2);
-    ctx.clip();
     const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, fogRadius);
-    fogGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    fogGrad.addColorStop(0.3, 'rgba(0,0,0,0.3)');
-    fogGrad.addColorStop(0.6, 'rgba(0,0,0,0.6)');
-    fogGrad.addColorStop(1, 'rgba(0,0,0,0.9)');
+    fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
+    fogGrad.addColorStop(1, 'rgba(0,0,0,1)');
     ctx.fillStyle = fogGrad;
     ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-    ctx.restore();
 
-    // Flashlight cone on top — clipped triangle with its own radius
+    // Flashlight cone — redraw with much lower opacity to punch through fog
     if (player && player.hasFlashlight) {
       const angle = player.facing;
       const coneLength = TILE * VISION_RADIUS * 2;
@@ -400,24 +388,13 @@ function drawLighting(offsetX, offsetY) {
       ctx.closePath();
       ctx.clip();
 
-      // Bright area inside cone, fading toward tip
+      // Near-clear inside cone, gradually darkening toward tip
       const coneGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
       coneGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      coneGrad.addColorStop(0.3, 'rgba(0,0,0,0.05)');
-      coneGrad.addColorStop(0.5, 'rgba(0,0,0,0.15)');
-      coneGrad.addColorStop(0.7, 'rgba(0,0,0,0.3)');
-      coneGrad.addColorStop(1, 'rgba(0,0,0,0.5)');
+      coneGrad.addColorStop(0.5, 'rgba(0,0,0,0.1)');
+      coneGrad.addColorStop(1, 'rgba(0,0,0,0.4)');
       ctx.fillStyle = coneGrad;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-      // Warm tint near player
-      const warmGrad = ctx.createRadialGradient(px, py, 0, px, py, TILE * 5);
-      warmGrad.addColorStop(0, 'rgba(255,250,220,0.08)');
-      warmGrad.addColorStop(0.4, 'rgba(255,240,200,0.04)');
-      warmGrad.addColorStop(1, 'rgba(255,240,200,0)');
-      ctx.fillStyle = warmGrad;
-      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-
       ctx.restore();
     }
   } else {
