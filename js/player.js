@@ -10,6 +10,7 @@ function createPlayer(wx, wy) {
     footstepAccum: 0,
     animFrame: 0,
     animTimer: 0,
+    hasFlashlight: false,
   };
 }
 
@@ -104,6 +105,16 @@ function updatePlayer(dt) {
     p.sanity = Math.min(100, p.sanity + 30);
     showMessage('你喝下了杏仁水，恢复了 30 点理智', 2.5);
     playFootstep();
+  }
+
+  // Pick up flashlight on contact (auto)
+  const itemKey2 = rkey(prx2, pry2);
+  const item2 = roomItems[itemKey2];
+  if (item2 && !item2.picked && item2.type === 'flashlight') {
+    item2.picked = true;
+    delete visitedRooms[itemKey2];
+    p.hasFlashlight = true;
+    showMessage('你捡起了一个手电筒！', 2.5);
   }
 
   // Check exit tile
