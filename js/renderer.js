@@ -375,27 +375,31 @@ function drawLighting(offsetX, offsetY) {
     osc.fillStyle = fogGrad;
     osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Erase fan-shaped area: clip to cone, fill with radial gradient
+    // Erase fan-shaped area: wide clip cone, gradient fades before touching edges
     if (player && player.hasFlashlight) {
       const angle = player.facing;
-      const coneLen = TILE * VISION_RADIUS;
-      const halfAngle = Math.PI / 5; // 36 degrees each side
+      const gradRadius = TILE * VISION_RADIUS;     // gradient fades within this
+      const clipLen = gradRadius * 1.8;             // clip extends well beyond gradient
+      const halfAngle = Math.PI / 3.5;              // wide ~51 degrees each side
 
       osc.save();
       osc.beginPath();
       osc.moveTo(px, py);
-      osc.lineTo(px + Math.cos(angle - halfAngle) * coneLen, py + Math.sin(angle - halfAngle) * coneLen);
-      osc.lineTo(px + Math.cos(angle + halfAngle) * coneLen, py + Math.sin(angle + halfAngle) * coneLen);
+      osc.lineTo(px + Math.cos(angle - halfAngle) * clipLen, py + Math.sin(angle - halfAngle) * clipLen);
+      osc.lineTo(px + Math.cos(angle + halfAngle) * clipLen, py + Math.sin(angle + halfAngle) * clipLen);
       osc.closePath();
       osc.clip();
 
       osc.globalCompositeOperation = 'destination-out';
-      const lightGrad = osc.createRadialGradient(px, py, 0, px, py, coneLen);
+      const lightGrad = osc.createRadialGradient(px, py, 0, px, py, gradRadius);
       lightGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
-      lightGrad.addColorStop(0.15, 'rgba(0,0,0,0.65)');
-      lightGrad.addColorStop(0.3, 'rgba(0,0,0,0.35)');
-      lightGrad.addColorStop(0.5, 'rgba(0,0,0,0.15)');
-      lightGrad.addColorStop(0.7, 'rgba(0,0,0,0.05)');
+      lightGrad.addColorStop(0.2, 'rgba(0,0,0,0.55)');
+      lightGrad.addColorStop(0.4, 'rgba(0,0,0,0.25)');
+      lightGrad.addColorStop(0.6, 'rgba(0,0,0,0.08)');
+      lightGrad.addColorStop(0.75, 'rgba(0,0,0,0.025)');
+      lightGrad.addColorStop(0.85, 'rgba(0,0,0,0.008)');
+      lightGrad.addColorStop(0.92, 'rgba(0,0,0,0.002)');
+      lightGrad.addColorStop(0.97, 'rgba(0,0,0,0.0005)');
       lightGrad.addColorStop(1, 'rgba(0,0,0,0)');
       osc.fillStyle = lightGrad;
       osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
