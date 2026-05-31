@@ -95,26 +95,26 @@ function updatePlayer(dt) {
     }
   }
 
-  // Pick up almond water on contact (auto)
-  const { rx: prx2, ry: pry2 } = worldToRoom(p.x, p.y);
-  const itemKey = rkey(prx2, pry2);
-  const item = roomItems[itemKey];
-  if (item && !item.picked && item.type === 'almond_water') {
-    item.picked = true;
-    delete visitedRooms[itemKey];
-    p.sanity = Math.min(100, p.sanity + 30);
-    showMessage('你喝下了杏仁水，恢复了 30 点理智', 2.5);
-    playFootstep();
-  }
-
-  // Pick up flashlight on contact (auto)
-  const itemKey2 = rkey(prx2, pry2);
-  const item2 = roomItems[itemKey2];
-  if (item2 && !item2.picked && item2.type === 'flashlight') {
-    item2.picked = true;
-    delete visitedRooms[itemKey2];
-    p.hasFlashlight = true;
-    showMessage('你捡起了一个手电筒！', 2.5);
+  // Pick up items on contact (tile-precise)
+  const { rx: prx2, ry: pry2, tx, ty } = worldToRoom(p.x, p.y);
+  const rmid = Math.floor(ROOM_TILES / 2);
+  if (tx === rmid && ty === rmid - 1) {
+    const itemKey = rkey(prx2, pry2);
+    const item = roomItems[itemKey];
+    if (item && !item.picked) {
+      if (item.type === 'almond_water') {
+        item.picked = true;
+        delete visitedRooms[itemKey];
+        p.sanity = Math.min(100, p.sanity + 30);
+        showMessage('你喝下了杏仁水，恢复了 30 点理智', 2.5);
+        playFootstep();
+      } else if (item.type === 'flashlight') {
+        item.picked = true;
+        delete visitedRooms[itemKey];
+        p.hasFlashlight = true;
+        showMessage('你捡起了一个手电筒！', 2.5);
+      }
+    }
   }
 
   // Check exit tile

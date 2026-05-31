@@ -250,6 +250,17 @@ function drawParkingRoom(rx, ry, offsetX, offsetY) {
         ctx.fillStyle = `rgba(255,215,0,${0.2 + pulse * 0.15})`;
         ctx.fillRect(fx + 5, fy - 3, 5, 5);
 
+      } else if (tile === 8) {
+        // Almond water bottle on concrete
+        ctx.fillStyle = C_CONCRETE;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+        if (almondBottleImg && almondBottleImg.complete) {
+          ctx.drawImage(almondBottleImg, Math.floor(sx2 + 3), Math.floor(sy2 + 1), 10, 12);
+        }
+        const pulse2 = 0.5 + 0.5 * Math.sin(frameCount * 0.04);
+        ctx.fillStyle = `rgba(150,200,240,${0.15 + pulse2 * 0.1})`;
+        ctx.fillRect(Math.floor(sx2 + 3), Math.floor(sy2 + 1), 10, 12);
+
       } else {
         // Concrete floor with subtle variation
         const v = hash(rx * 100 + tx, ry * 100 + ty) % 100;
@@ -342,17 +353,69 @@ function drawLighting(offsetX, offsetY) {
   const lightRadius = TILE * VISION_RADIUS;
 
   // Tighter fog on level 2
-  const innerStop = currentLevel === 2 ? 0.15 : 0.2;
-  const midStop = currentLevel === 2 ? 0.3 : 0.45;
-  const outerStop = currentLevel === 2 ? 0.55 : 0.75;
-  const outerAlpha = currentLevel === 2 ? 0.92 : 0.90;
-  const gradient = ctx.createRadialGradient(px, py, lightRadius * innerStop, px, py, lightRadius);
-  gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(midStop, 'rgba(0,0,0,0)');
-  gradient.addColorStop(outerStop, `rgba(0,0,0,${currentLevel === 2 ? 0.65 : 0.55})`);
-  gradient.addColorStop(1, `rgba(0,0,0,${outerAlpha})`);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+  if (currentLevel === 2) {
+    // Full-screen dark fog first
+    const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, lightRadius);
+    fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
+    fogGrad.addColorStop(0.4, 'rgba(0,0,0,0.88)');
+    fogGrad.addColorStop(0.7, 'rgba(0,0,0,0.92)');
+    fogGrad.addColorStop(1, 'rgba(0,0,0,0.95)');
+    ctx.fillStyle = fogGrad;
+    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+    // Smooth cone light on top (only with flashlight)
+    if (player && player.hasFlashlight) {
+      const angle = player.facing;
+      const coneLength = TILE * VISION_RADIUS;
+      const halfAngle = Math.PI / 5;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(
+        px + Math.cos(angle - halfAngle) * coneLength * TILE,
+        py + Math.sin(angle - halfAngle) * coneLength * TILE
+      );
+      ctx.lineTo(
+        px + Math.cos(angle + halfAngle) * coneLength * TILE,
+        py + Math.sin(angle + halfAngle) * coneLength * TILE
+      );
+      ctx.closePath();
+      ctx.clip();
+
+      // Clear the darkness inside the cone
+      ctx.clearRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+      // Soft radial gradient for smooth falloff within the cone
+      const grad = ctx.createRadialGradient(px, py, 0, px, py, coneLength * TILE);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.35, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.6, 'rgba(0,0,0,0.25)');
+      grad.addColorStop(0.8, 'rgba(0,0,0,0.55)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.8)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+      // Warm light tint near the player
+      const warmGrad = ctx.createRadialGradient(px, py, 0, px, py, TILE * 3);
+      warmGrad.addColorStop(0, 'rgba(255,245,210,0.06)');
+      warmGrad.addColorStop(0.5, 'rgba(255,240,200,0.02)');
+      warmGrad.addColorStop(1, 'rgba(255,240,200,0)');
+      ctx.fillStyle = warmGrad;
+      ctx.fillRect(px - TILE * 4, py - TILE * 4, TILE * 8, TILE * 8);
+
+      ctx.restore();
+    }
+  } else {
+    // Level 1: normal circular fog of war
+    const gradient = ctx.createRadialGradient(px, py, lightRadius * 0.2, px, py, lightRadius);
+    gradient.addColorStop(0, 'rgba(0,0,0,0)');
+    gradient.addColorStop(0.45, 'rgba(0,0,0,0)');
+    gradient.addColorStop(0.75, 'rgba(0,0,0,0.55)');
+    gradient.addColorStop(1, 'rgba(0,0,0,0.90)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+  }
 
   // Room lights
   const { rx: prx, ry: pry } = worldToRoom(p.x, p.y);
@@ -398,44 +461,6 @@ function drawLighting(offsetX, offsetY) {
     }
   }
 
-  // Flashlight spotlight (Level 2)
-  if (currentLevel === 2 && player && player.hasFlashlight) {
-    const angle = player.facing;
-    const coneLength = TILE * 6;
-    const coneHalfAngle = Math.PI / 6;
-    const steps = 12;
-
-    ctx.save();
-    // Draw symmetric cone: brightest/longest at center, fading to edges
-    for (let i = 0; i < steps; i++) {
-      const t0 = i / steps;
-      const t1 = (i + 1) / steps;
-      const a0 = angle - coneHalfAngle + t0 * coneHalfAngle * 2;
-      const a1 = angle - coneHalfAngle + t1 * coneHalfAngle * 2;
-
-      // Distance from beam center (0 at center, 1 at edges)
-      const distFromCenter = Math.abs((t0 + t1) / 2 - 0.5) * 2;
-      const r = coneLength * (1.0 - distFromCenter * 0.6);
-      const alpha = 0.14 * (1 - distFromCenter);
-
-      ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.lineTo(px + Math.cos(a0) * r, py + Math.sin(a0) * r);
-      ctx.lineTo(px + Math.cos(a1) * r, py + Math.sin(a1) * r);
-      ctx.closePath();
-      ctx.fillStyle = `rgba(255,240,200,${alpha})`;
-      ctx.fill();
-    }
-
-    // Hot spot at center
-    const hotGrad = ctx.createRadialGradient(px, py, 0, px, py, TILE * 2);
-    hotGrad.addColorStop(0, 'rgba(255,250,220,0.15)');
-    hotGrad.addColorStop(1, 'rgba(255,240,200,0)');
-    ctx.fillStyle = hotGrad;
-    ctx.fillRect(px - TILE * 2, py - TILE * 2, TILE * 4, TILE * 4);
-
-    ctx.restore();
-  }
 }
 
 // ============ ENTITY & PLAYER DRAWING ============

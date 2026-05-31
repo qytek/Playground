@@ -34,6 +34,20 @@ function transitionToLevel(level) {
     mazeData = generateMaze('parking');
     placeCarsInGarage();
 
+    // Remove items that overlap with parked cars
+    const mid = Math.floor(ROOM_TILES / 2);
+    for (const rk in roomItems) {
+      const cars = carData[rk];
+      if (!cars) continue;
+      for (const car of cars) {
+        if (mid >= car.tx && mid < car.tx + car.w && (mid - 1) >= car.ty && (mid - 1) < car.ty + car.h) {
+          delete roomItems[rk];
+          delete visitedRooms[rk];
+          break;
+        }
+      }
+    }
+
     // Place player at start room
     const startWX = mazeData.startRx * ROOM_PX + ROOM_PX / 2;
     const startWY = mazeData.startRy * ROOM_PX + ROOM_PX / 2;

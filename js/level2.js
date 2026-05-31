@@ -1,5 +1,5 @@
 // ============ LEVEL 2: PARKING GARAGE ============
-// Parking garage tile types: 0=concrete floor, 1=concrete wall, 2=wide doorway, 3=fluorescent light, 4=elevator, 5=parking line, 6=car cell
+// Parking garage tile types: 0=concrete floor, 1=concrete wall, 2=wide doorway, 3=fluorescent light, 4=elevator, 5=parking line, 6=car cell, 7=flashlight, 8=almond_water
 
 const carData = {}; // key: "rx,ry" -> [{ tx, ty, w, h, color }]
 
@@ -72,6 +72,11 @@ function generateParkingRoomTiles(rx, ry) {
   // Flashlight item
   if (roomItems[key] && !roomItems[key].picked && roomItems[key].type === 'flashlight') {
     tiles[mid][mid - 1] = 7;
+  }
+
+  // Almond water item
+  if (roomItems[key] && !roomItems[key].picked && roomItems[key].type === 'almond_water') {
+    tiles[mid][mid - 1] = 8;
   }
 
   visitedRooms[key] = tiles;
