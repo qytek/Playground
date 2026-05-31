@@ -99,7 +99,7 @@ function updatePlayer(dt) {
   const { rx: prx2, ry: pry2 } = worldToRoom(p.x, p.y);
   const itemKey = rkey(prx2, pry2);
   const item = roomItems[itemKey];
-  if (item && !item.picked) {
+  if (item && !item.picked && item.type === 'almond_water') {
     item.picked = true;
     delete visitedRooms[itemKey];
     p.sanity = Math.min(100, p.sanity + 30);
