@@ -358,22 +358,42 @@ function drawLighting(offsetX, offsetY) {
   const py = p.y - offsetY;
   const lightRadius = TILE * VISION_RADIUS;
 
-  // Level 2 lighting: fog overlay + optional flashlight cone
+  // Level 2 lighting: fog overlay + optional flashlight cone window
   if (currentLevel === 2) {
-    // Draw fog over everything — tight circle of visibility
     const fogRadius = lightRadius * 0.5;
     const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, fogRadius);
     fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
     fogGrad.addColorStop(1, 'rgba(0,0,0,1)');
-    ctx.fillStyle = fogGrad;
-    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Flashlight cone — use 'lighter' compositing to add brightness through fog
     if (player && player.hasFlashlight) {
+      // Draw fog everywhere EXCEPT the cone (window through darkness)
       const angle = player.facing;
       const coneLength = TILE * VISION_RADIUS * 2;
       const halfAngle = Math.PI / 5;
 
+      ctx.save();
+      ctx.beginPath();
+      // Full screen rect (clockwise)
+      ctx.rect(0, 0, INTERNAL_W, INTERNAL_H);
+      // Cone triangle (counter-clockwise for evenodd)
+      ctx.moveTo(px, py);
+      ctx.lineTo(
+        px + Math.cos(angle + halfAngle) * coneLength,
+        py + Math.sin(angle + halfAngle) * coneLength
+      );
+      ctx.lineTo(
+        px + Math.cos(angle - halfAngle) * coneLength,
+        py + Math.sin(angle - halfAngle) * coneLength
+      );
+      ctx.closePath();
+      ctx.clip('evenodd');
+
+      // Fog fills everywhere except the cone area
+      ctx.fillStyle = fogGrad;
+      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+      ctx.restore();
+
+      // Subtle warm light gradient inside cone (soft radial falloff)
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(px, py);
@@ -388,17 +408,17 @@ function drawLighting(offsetX, offsetY) {
       ctx.closePath();
       ctx.clip();
 
-      // 'lighter' adds RGB values — brightens the black fog
-      ctx.globalCompositeOperation = 'lighter';
       const coneGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
-      coneGrad.addColorStop(0, 'rgba(40,35,25,0.9)');
-      coneGrad.addColorStop(0.3, 'rgba(30,26,18,0.6)');
-      coneGrad.addColorStop(0.6, 'rgba(15,12,8,0.3)');
-      coneGrad.addColorStop(1, 'rgba(5,4,2,0.1)');
+      coneGrad.addColorStop(0, 'rgba(255,245,210,0.15)');
+      coneGrad.addColorStop(0.4, 'rgba(255,240,200,0.06)');
+      coneGrad.addColorStop(1, 'rgba(255,240,200,0)');
       ctx.fillStyle = coneGrad;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-      ctx.globalCompositeOperation = 'source-over';
       ctx.restore();
+    } else {
+      // No flashlight: fog everywhere
+      ctx.fillStyle = fogGrad;
+      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
     }
   } else {
     // Level 1: normal circular fog of war
