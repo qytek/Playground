@@ -375,38 +375,24 @@ function drawLighting(offsetX, offsetY) {
     osc.fillStyle = fogGrad;
     osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Erase cone from offscreen fog (doesn't affect game content)
+    // Erase fog in a soft circle ahead of player (no geometry, just gradient)
     if (player && player.hasFlashlight) {
       const angle = player.facing;
-      const coneLength = TILE * VISION_RADIUS;
-      const halfAngle = Math.PI / 4;
-      const steps = 24;
+      const offsetDist = TILE * 3;           // gradient center ahead of player
+      const lightCX = px + Math.cos(angle) * offsetDist;
+      const lightCY = py + Math.sin(angle) * offsetDist;
+      const lightRadius = TILE * VISION_RADIUS;
 
       osc.globalCompositeOperation = 'destination-out';
-
-      for (let i = 0; i < steps; i++) {
-        const t0 = i / steps;
-        const t1 = (i + 1) / steps;
-        const a0 = angle - halfAngle + t0 * halfAngle * 2;
-        const a1 = angle - halfAngle + t1 * halfAngle * 2;
-
-        const distFromCenter = Math.abs((t0 + t1) / 2 - 0.5) * 2;
-        const angularFalloff = Math.cos(distFromCenter * Math.PI / 2);
-        const midDist = (t0 + t1) / 2;
-        const radialFalloff = 1 / (1 + 8 * midDist * midDist);
-        const erase = 0.7 * angularFalloff * radialFalloff;
-
-        const r0 = coneLength * (0.15 + 0.85 * t0);
-        const r1 = coneLength * (0.15 + 0.85 * t1);
-
-        osc.beginPath();
-        osc.moveTo(px, py);
-        osc.lineTo(px + Math.cos(a0) * r0, py + Math.sin(a0) * r0);
-        osc.lineTo(px + Math.cos(a1) * r1, py + Math.sin(a1) * r1);
-        osc.closePath();
-        osc.fillStyle = `rgba(0,0,0,${erase})`;
-        osc.fill();
-      }
+      const lightGrad = osc.createRadialGradient(lightCX, lightCY, 0, lightCX, lightCY, lightRadius);
+      lightGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
+      lightGrad.addColorStop(0.15, 'rgba(0,0,0,0.65)');
+      lightGrad.addColorStop(0.3, 'rgba(0,0,0,0.35)');
+      lightGrad.addColorStop(0.5, 'rgba(0,0,0,0.15)');
+      lightGrad.addColorStop(0.7, 'rgba(0,0,0,0.05)');
+      lightGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      osc.fillStyle = lightGrad;
+      osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
     }
 
     // Draw the result (fog with cone hole) onto the main canvas
