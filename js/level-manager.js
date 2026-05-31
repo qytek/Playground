@@ -33,6 +33,7 @@ function transitionToLevel(level) {
     generateRoomTiles = generateParkingRoomTiles;
     mazeData = generateMaze('parking');
     placeCarsInGarage();
+    console.log('[level-manager] Level 2 ready. roomItems:', Object.keys(roomItems).length, 'keys:', Object.keys(roomItems).join(', '));
 
     // Place player at start room
     const startWX = mazeData.startRx * ROOM_PX + ROOM_PX / 2;

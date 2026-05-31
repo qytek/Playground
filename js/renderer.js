@@ -354,11 +354,11 @@ function drawLighting(offsetX, offsetY) {
 
   // Tighter fog on level 2
   if (currentLevel === 2) {
-    // Full-screen dark fog first
+    // Full-screen dark fog first (center visible enough to find items)
     const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, lightRadius);
-    fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
-    fogGrad.addColorStop(0.4, 'rgba(0,0,0,0.88)');
-    fogGrad.addColorStop(0.7, 'rgba(0,0,0,0.92)');
+    fogGrad.addColorStop(0, 'rgba(0,0,0,0.45)');
+    fogGrad.addColorStop(0.3, 'rgba(0,0,0,0.65)');
+    fogGrad.addColorStop(0.6, 'rgba(0,0,0,0.85)');
     fogGrad.addColorStop(1, 'rgba(0,0,0,0.95)');
     ctx.fillStyle = fogGrad;
     ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);

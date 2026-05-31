@@ -73,8 +73,10 @@ function generateParkingRoomTiles(rx, ry) {
   if (roomItems[key] && !roomItems[key].picked) {
     if (roomItems[key].type === 'flashlight') {
       tiles[2][2] = 7;
+      console.log('[level2.js] Flashlight tile set at room:', key);
     } else if (roomItems[key].type === 'almond_water') {
       tiles[2][2] = 8;
+      console.log('[level2.js] Almond water tile set at room:', key);
     }
   }
 

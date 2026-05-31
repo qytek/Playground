@@ -104,15 +104,18 @@ function generateMaze(levelType) {
   roomTypes[rkey(exitRx, exitRy)] = 'exit';
 
   // Place almond water in both levels
+  let almondCount = 0;
   for (let x = 0; x < MAP_ROOMS; x++) {
     for (let y = 0; y < MAP_ROOMS; y++) {
       const rk = rkey(x, y);
       if (roomTypes[rk] === 'start' || roomTypes[rk] === 'exit') continue;
       if (rng(x + 300, y + 300) < 0.20) {
         roomItems[rk] = { type: 'almond_water', picked: false };
+        almondCount++;
       }
     }
   }
+  console.log('[maze.js] Level:', levelType, 'MAP_ROOMS:', MAP_ROOMS, 'almond waters placed:', almondCount);
 
   // Flashlight placement (parking garage only)
   if (levelType === 'parking') {
@@ -127,13 +130,16 @@ function generateMaze(levelType) {
       if (fx >= 0 && fx < MAP_ROOMS && fy >= 0 && fy < MAP_ROOMS &&
           roomTypes[fk] !== 'start' && roomTypes[fk] !== 'exit' && !roomItems[fk]) {
         roomItems[fk] = { type: 'flashlight', picked: false };
+        console.log('[maze.js] Flashlight placed at room:', fk, 'attempt:', attempt);
         break;
       }
     }
     if (!Object.values(roomItems).some(function(item) { return item.type === 'flashlight'; })) {
-      console.warn('Failed to place flashlight in level 2');
+      console.warn('[maze.js] Failed to place flashlight in level 2');
     }
   }
+
+  console.log('[maze.js] Total roomItems after placement:', Object.keys(roomItems).length);
 
   return { startRx, startRy, exitRx, exitRy };
 }
