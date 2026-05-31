@@ -95,10 +95,11 @@ function updatePlayer(dt) {
     }
   }
 
-  // Pick up items on contact (tile-precise)
-  const { rx: prx2, ry: pry2, tx, ty } = worldToRoom(p.x, p.y);
-  const rmid = Math.floor(ROOM_TILES / 2);
-  if (tx === rmid && ty === rmid - 1) {
+  // Pick up items on contact (detect by tile type, verify via roomItems)
+  const playerTile = getTile(p.x, p.y);
+  const isItemTile = playerTile === 5 || playerTile === 7 || playerTile === 8;
+  if (isItemTile) {
+    const { rx: prx2, ry: pry2 } = worldToRoom(p.x, p.y);
     const itemKey = rkey(prx2, pry2);
     const item = roomItems[itemKey];
     if (item && !item.picked) {

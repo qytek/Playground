@@ -69,14 +69,13 @@ function generateParkingRoomTiles(rx, ry) {
     }
   }
 
-  // Flashlight item
-  if (roomItems[key] && !roomItems[key].picked && roomItems[key].type === 'flashlight') {
-    tiles[mid][mid - 1] = 7;
-  }
-
-  // Almond water item
-  if (roomItems[key] && !roomItems[key].picked && roomItems[key].type === 'almond_water') {
-    tiles[mid][mid - 1] = 8;
+  // Items in top-left corner (safe from cars: y<5 never overlaps any car config)
+  if (roomItems[key] && !roomItems[key].picked) {
+    if (roomItems[key].type === 'flashlight') {
+      tiles[2][2] = 7;
+    } else if (roomItems[key].type === 'almond_water') {
+      tiles[2][2] = 8;
+    }
   }
 
   visitedRooms[key] = tiles;
