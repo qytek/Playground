@@ -39,6 +39,7 @@ function transitionToLevel(level) {
     const startWX = mazeData.startRx * ROOM_PX + ROOM_PX / 2;
     const startWY = mazeData.startRy * ROOM_PX + ROOM_PX / 2;
     player = createPlayer(startWX, startWY);
+    player.hasFlashlight = true; // default flashlight on Level 2
 
     // Place entity - ensure it's not in the start room
     let midRx = Math.floor((mazeData.startRx + mazeData.exitRx) / 2) + 1;
