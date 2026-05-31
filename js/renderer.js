@@ -361,36 +361,36 @@ function drawLighting(offsetX, offsetY) {
   // Tighter fog on level 2
   if (currentLevel === 2) {
     // Full-screen dark fog first (very dim without flashlight)
-    const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, lightRadius);
-    fogGrad.addColorStop(0, 'rgba(0,0,0,0.7)');
-    fogGrad.addColorStop(0.25, 'rgba(0,0,0,0.8)');
-    fogGrad.addColorStop(0.5, 'rgba(0,0,0,0.9)');
-    fogGrad.addColorStop(1, 'rgba(0,0,0,0.97)');
+    const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, lightRadius * 0.5);
+    fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
+    fogGrad.addColorStop(0.25, 'rgba(0,0,0,0.9)');
+    fogGrad.addColorStop(0.5, 'rgba(0,0,0,0.95)');
+    fogGrad.addColorStop(1, 'rgba(0,0,0,1)');
     ctx.fillStyle = fogGrad;
     ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
     // Smooth cone light on top (only with flashlight) — redraw lighter fog inside cone
     if (player && player.hasFlashlight) {
       const angle = player.facing;
-      const coneLength = TILE * VISION_RADIUS;
+      const coneLength = TILE * VISION_RADIUS * 2;
       const halfAngle = Math.PI / 5;
 
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(px, py);
       ctx.lineTo(
-        px + Math.cos(angle - halfAngle) * coneLength * TILE,
-        py + Math.sin(angle - halfAngle) * coneLength * TILE
+        px + Math.cos(angle - halfAngle) * coneLength,
+        py + Math.sin(angle - halfAngle) * coneLength
       );
       ctx.lineTo(
-        px + Math.cos(angle + halfAngle) * coneLength * TILE,
-        py + Math.sin(angle + halfAngle) * coneLength * TILE
+        px + Math.cos(angle + halfAngle) * coneLength,
+        py + Math.sin(angle + halfAngle) * coneLength
       );
       ctx.closePath();
       ctx.clip();
 
       // Overwrite dark fog with much lighter fog: clear near player, fading at edges
-      const coneGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength * TILE);
+      const coneGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
       coneGrad.addColorStop(0, 'rgba(0,0,0,0)');
       coneGrad.addColorStop(0.2, 'rgba(0,0,0,0)');
       coneGrad.addColorStop(0.4, 'rgba(0,0,0,0.05)');
