@@ -368,7 +368,7 @@ function drawLighting(offsetX, offsetY) {
     if (player && player.hasFlashlight) {
       // Draw fog everywhere EXCEPT the cone (window through darkness)
       const angle = player.facing;
-      const coneLength = TILE * VISION_RADIUS * 2;
+      const coneLength = TILE * VISION_RADIUS; // match fog's original lightRadius
       const halfAngle = Math.PI / 5;
 
       ctx.save();
