@@ -411,11 +411,6 @@ function drawLighting(offsetX, offsetY) {
 
     // Draw the result (fog with cone hole) onto the main canvas
     ctx.drawImage(offscreen, 0, 0);
-    } else {
-      // No flashlight: fog everywhere
-      ctx.fillStyle = fogGrad;
-      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-    }
   } else {
     // Level 1: normal circular fog of war
     const gradient = ctx.createRadialGradient(px, py, lightRadius * 0.2, px, py, lightRadius);
