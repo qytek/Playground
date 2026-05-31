@@ -375,56 +375,27 @@ function drawLighting(offsetX, offsetY) {
     osc.fillStyle = fogGrad;
     osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Soft fan: angular falloff (triangles) + radial falloff (gradient via destination-in)
+    // Elliptical beam: scale transform stretches gradient forward, no geometry
     if (player && player.hasFlashlight) {
       const angle = player.facing;
       const beamLen = TILE * VISION_RADIUS;
-      const halfAngle = Math.PI / 5;
-      const steps = 40;
 
-      // Clip to fan shape for all operations below
       osc.save();
-      osc.beginPath();
-      osc.moveTo(px, py);
-      osc.lineTo(px + Math.cos(angle - halfAngle) * beamLen, py + Math.sin(angle - halfAngle) * beamLen);
-      osc.lineTo(px + Math.cos(angle + halfAngle) * beamLen, py + Math.sin(angle + halfAngle) * beamLen);
-      osc.closePath();
-      osc.clip();
+      osc.translate(px, py);
+      osc.rotate(angle);
+      osc.scale(2.5, 0.6); // stretch forward, narrow sideways → elliptical beam
 
-      // Pass 1: angular falloff via triangle fan (all same outer radius)
       osc.globalCompositeOperation = 'destination-out';
-      for (let i = 0; i < steps; i++) {
-        const t0 = i / steps;
-        const t1 = (i + 1) / steps;
-        const a0 = angle - halfAngle + t0 * halfAngle * 2;
-        const a1 = angle - halfAngle + t1 * halfAngle * 2;
+      const ellipGrad = osc.createRadialGradient(0, 0, 0, 0, 0, beamLen);
+      ellipGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
+      ellipGrad.addColorStop(0.2, 'rgba(0,0,0,0.65)');
+      ellipGrad.addColorStop(0.4, 'rgba(0,0,0,0.35)');
+      ellipGrad.addColorStop(0.6, 'rgba(0,0,0,0.12)');
+      ellipGrad.addColorStop(0.8, 'rgba(0,0,0,0.03)');
+      ellipGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      osc.fillStyle = ellipGrad;
+      osc.fillRect(-beamLen, -beamLen, beamLen * 2, beamLen * 2);
 
-        const midT = (t0 + t1) / 2;
-        const angleDist = Math.abs(midT - 0.5) * 2;
-        const erase = 0.8 * Math.pow(Math.cos(angleDist * Math.PI / 2), 1.5);
-
-        osc.beginPath();
-        osc.moveTo(px, py);
-        osc.lineTo(px + Math.cos(a0) * beamLen, py + Math.sin(a0) * beamLen);
-        osc.lineTo(px + Math.cos(a1) * beamLen, py + Math.sin(a1) * beamLen);
-        osc.closePath();
-        osc.fillStyle = `rgba(0,0,0,${erase.toFixed(4)})`;
-        osc.fill();
-      }
-
-      // Pass 2: radial falloff — fade beam with distance
-      osc.globalCompositeOperation = 'destination-in';
-      const radGrad = osc.createRadialGradient(px, py, 0, px, py, beamLen);
-      radGrad.addColorStop(0, 'rgba(0,0,0,1)');
-      radGrad.addColorStop(0.15, 'rgba(0,0,0,0.95)');
-      radGrad.addColorStop(0.35, 'rgba(0,0,0,0.7)');
-      radGrad.addColorStop(0.55, 'rgba(0,0,0,0.35)');
-      radGrad.addColorStop(0.75, 'rgba(0,0,0,0.1)');
-      radGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      osc.fillStyle = radGrad;
-      osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-      osc.globalCompositeOperation = 'source-over';
       osc.restore();
     }
 
