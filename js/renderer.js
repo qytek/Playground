@@ -365,81 +365,52 @@ function drawLighting(offsetX, offsetY) {
     fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
     fogGrad.addColorStop(1, 'rgba(0,0,0,1)');
 
+    // Build fog + cone mask on offscreen canvas, then draw it
+    const offscreen = document.createElement('canvas');
+    offscreen.width = INTERNAL_W;
+    offscreen.height = INTERNAL_H;
+    const osc = offscreen.getContext('2d');
+
+    // Draw fog on offscreen
+    osc.fillStyle = fogGrad;
+    osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+    // Erase cone from offscreen fog (doesn't affect game content)
     if (player && player.hasFlashlight) {
-      // Draw fog everywhere EXCEPT the cone (window through darkness)
       const angle = player.facing;
-      const coneLength = TILE * VISION_RADIUS; // match fog's original lightRadius
-      const halfAngle = Math.PI / 5;
+      const coneLength = TILE * VISION_RADIUS;
+      const halfAngle = Math.PI / 4;
+      const steps = 24;
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, INTERNAL_W, INTERNAL_H);
-      ctx.moveTo(px, py);
-      ctx.lineTo(
-        px + Math.cos(angle + halfAngle) * coneLength,
-        py + Math.sin(angle + halfAngle) * coneLength
-      );
-      ctx.lineTo(
-        px + Math.cos(angle - halfAngle) * coneLength,
-        py + Math.sin(angle - halfAngle) * coneLength
-      );
-      ctx.closePath();
-      ctx.clip('evenodd');
+      osc.globalCompositeOperation = 'destination-out';
 
-      ctx.fillStyle = fogGrad;
-      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-      ctx.restore();
+      for (let i = 0; i < steps; i++) {
+        const t0 = i / steps;
+        const t1 = (i + 1) / steps;
+        const a0 = angle - halfAngle + t0 * halfAngle * 2;
+        const a1 = angle - halfAngle + t1 * halfAngle * 2;
 
-      // Inverse-square fog falloff inside cone + warm glow
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.lineTo(
-        px + Math.cos(angle - halfAngle) * coneLength,
-        py + Math.sin(angle - halfAngle) * coneLength
-      );
-      ctx.lineTo(
-        px + Math.cos(angle + halfAngle) * coneLength,
-        py + Math.sin(angle + halfAngle) * coneLength
-      );
-      ctx.closePath();
-      ctx.clip();
+        const distFromCenter = Math.abs((t0 + t1) / 2 - 0.5) * 2;
+        const angularFalloff = Math.cos(distFromCenter * Math.PI / 2);
+        const midDist = (t0 + t1) / 2;
+        const radialFalloff = 1 / (1 + 8 * midDist * midDist);
+        const erase = 0.7 * angularFalloff * radialFalloff;
 
-      // Fog falloff: inverse square f(t) = maxFog * (1 - 1/(1 + decay*t^2))
-      // maxFog=0.6, decay=8, 10-stop piecewise approximation
-      const fogFalloff = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
-      fogFalloff.addColorStop(0.0, 'rgba(0,0,0,0)');
-      fogFalloff.addColorStop(0.1, 'rgba(0,0,0,0.044)');
-      fogFalloff.addColorStop(0.2, 'rgba(0,0,0,0.145)');
-      fogFalloff.addColorStop(0.3, 'rgba(0,0,0,0.251)');
-      fogFalloff.addColorStop(0.4, 'rgba(0,0,0,0.337)');
-      fogFalloff.addColorStop(0.5, 'rgba(0,0,0,0.400)');
-      fogFalloff.addColorStop(0.6, 'rgba(0,0,0,0.445)');
-      fogFalloff.addColorStop(0.7, 'rgba(0,0,0,0.478)');
-      fogFalloff.addColorStop(0.8, 'rgba(0,0,0,0.502)');
-      fogFalloff.addColorStop(0.9, 'rgba(0,0,0,0.520)');
-      fogFalloff.addColorStop(1.0, 'rgba(0,0,0,0.533)');
-      ctx.fillStyle = fogFalloff;
-      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+        const r0 = coneLength * (0.15 + 0.85 * t0);
+        const r1 = coneLength * (0.15 + 0.85 * t1);
 
-      // Warm glow: inverse square f(t) = maxWarm / (1 + decay*t^2)
-      // maxWarm=0.08, decay=15, 10-stop approximation
-      const warmGlow = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
-      warmGlow.addColorStop(0.0, 'rgba(255,245,210,0.080)');
-      warmGlow.addColorStop(0.1, 'rgba(255,245,210,0.070)');
-      warmGlow.addColorStop(0.2, 'rgba(255,242,205,0.050)');
-      warmGlow.addColorStop(0.3, 'rgba(255,242,205,0.034)');
-      warmGlow.addColorStop(0.4, 'rgba(255,240,200,0.024)');
-      warmGlow.addColorStop(0.5, 'rgba(255,240,200,0.017)');
-      warmGlow.addColorStop(0.6, 'rgba(255,238,195,0.013)');
-      warmGlow.addColorStop(0.7, 'rgba(255,238,195,0.010)');
-      warmGlow.addColorStop(0.8, 'rgba(255,238,195,0.008)');
-      warmGlow.addColorStop(0.9, 'rgba(255,238,195,0.006)');
-      warmGlow.addColorStop(1.0, 'rgba(255,238,195,0.005)');
-      ctx.fillStyle = warmGlow;
-      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+        osc.beginPath();
+        osc.moveTo(px, py);
+        osc.lineTo(px + Math.cos(a0) * r0, py + Math.sin(a0) * r0);
+        osc.lineTo(px + Math.cos(a1) * r1, py + Math.sin(a1) * r1);
+        osc.closePath();
+        osc.fillStyle = `rgba(0,0,0,${erase})`;
+        osc.fill();
+      }
+    }
 
-      ctx.restore();
+    // Draw the result (fog with cone hole) onto the main canvas
+    ctx.drawImage(offscreen, 0, 0);
     } else {
       // No flashlight: fog everywhere
       ctx.fillStyle = fogGrad;
