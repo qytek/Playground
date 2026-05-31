@@ -236,12 +236,12 @@ function drawParkingRoom(rx, ry, offsetX, offsetY) {
         // Flashlight item on ground
         ctx.fillStyle = C_CONCRETE;
         ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
-        // Draw a small flashlight shape
-        const fx = Math.floor(sx2 + TILE/2);
+        // Draw a small flashlight shape (shifted left to fit within tile)
+        const fx = Math.floor(sx2 + TILE/2) - 2;
         const fy = Math.floor(sy2 + TILE/2);
         // Body
         ctx.fillStyle = '#444';
-        ctx.fillRect(fx - 2, fy - 3, 8, 5);
+        ctx.fillRect(fx - 1, fy - 3, 7, 5);
         // Head
         ctx.fillStyle = '#ffd700';
         ctx.fillRect(fx + 6, fy - 2, 3, 3);

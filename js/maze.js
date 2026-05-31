@@ -130,6 +130,9 @@ function generateMaze(levelType) {
         break;
       }
     }
+    if (!Object.values(roomItems).some(function(item) { return item.type === 'flashlight'; })) {
+      console.warn('Failed to place flashlight in level 2');
+    }
   }
 
   return { startRx, startRy, exitRx, exitRy };
