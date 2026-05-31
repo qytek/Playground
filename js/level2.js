@@ -69,6 +69,11 @@ function generateParkingRoomTiles(rx, ry) {
     }
   }
 
+  // Flashlight item
+  if (roomItems[key] && !roomItems[key].picked && roomItems[key].type === 'flashlight') {
+    tiles[mid][mid - 1] = 7;
+  }
+
   visitedRooms[key] = tiles;
   return tiles;
 }

@@ -232,6 +232,24 @@ function drawParkingRoom(rx, ry, offsetX, offsetY) {
         ctx.fillStyle = C_CONCRETE;
         ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
 
+      } else if (tile === 7) {
+        // Flashlight item on ground
+        ctx.fillStyle = C_CONCRETE;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+        // Draw a small flashlight shape
+        const fx = Math.floor(sx2 + TILE/2);
+        const fy = Math.floor(sy2 + TILE/2);
+        // Body
+        ctx.fillStyle = '#444';
+        ctx.fillRect(fx - 2, fy - 3, 8, 5);
+        // Head
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(fx + 6, fy - 2, 3, 3);
+        // Glow
+        const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.04);
+        ctx.fillStyle = `rgba(255,215,0,${0.2 + pulse * 0.15})`;
+        ctx.fillRect(fx + 5, fy - 3, 5, 5);
+
       } else {
         // Concrete floor with subtle variation
         const v = hash(rx * 100 + tx, ry * 100 + ty) % 100;

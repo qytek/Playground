@@ -114,6 +114,24 @@ function generateMaze(levelType) {
     }
   }
 
+  // Flashlight placement (parking garage only)
+  if (levelType === 'parking') {
+    // Pick a random room between start and exit (not in start or exit rooms)
+    const midX = Math.floor((startRx + exitRx) / 2);
+    const midY = Math.floor((startRy + exitRy) / 2);
+    // Try rooms near the midpoint until we find a valid one
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const fx = midX + Math.floor(rng(startRx + 800 + attempt, startRy) * 5) - 2;
+      const fy = midY + Math.floor(rng(startRx + 900 + attempt, startRy) * 5) - 2;
+      const fk = rkey(fx, fy);
+      if (fx >= 0 && fx < MAP_ROOMS && fy >= 0 && fy < MAP_ROOMS &&
+          roomTypes[fk] !== 'start' && roomTypes[fk] !== 'exit' && !roomItems[fk]) {
+        roomItems[fk] = { type: 'flashlight', picked: false };
+        break;
+      }
+    }
+  }
+
   return { startRx, startRy, exitRx, exitRy };
 }
 
