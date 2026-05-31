@@ -365,46 +365,88 @@ function drawLighting(offsetX, offsetY) {
     fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
     fogGrad.addColorStop(1, 'rgba(0,0,0,1)');
 
-    // Build fog + cone mask on offscreen canvas, then draw it
-    const offscreen = document.createElement('canvas');
-    offscreen.width = INTERNAL_W;
-    offscreen.height = INTERNAL_H;
-    const osc = offscreen.getContext('2d');
-
-    // Draw fog on offscreen
-    osc.fillStyle = fogGrad;
-    osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-    // Spotlight: stacked narrow gradients with sharp falloff
+    // Per-pixel spotlight: pixel-perfect cone with angle+distance falloff
     if (player && player.hasFlashlight) {
       const angle = player.facing;
       const beamLen = TILE * VISION_RADIUS;
-      const halfAngle = Math.PI / 7;  // ~26 degrees each side, narrower beam
-      const rings = 10;
+      const halfAngle = Math.PI / 5;
+      const cosHalf = Math.cos(halfAngle);
 
-      osc.globalCompositeOperation = 'destination-out';
+      // Draw fog on offscreen at half resolution for performance
+      const scale = 0.5;
+      const ow = Math.floor(INTERNAL_W * scale);
+      const oh = Math.floor(INTERNAL_H * scale);
+      const offscreen = document.createElement('canvas');
+      offscreen.width = ow;
+      offscreen.height = oh;
+      const osc = offscreen.getContext('2d');
 
-      for (let i = 0; i < rings; i++) {
-        const t = (i + 0.5) / rings;
-        const cx = px + Math.cos(angle) * beamLen * t;
-        const cy = py + Math.sin(angle) * beamLen * t;
-        const r = beamLen * t * Math.tan(halfAngle) * 1.2;
+      // Fill with solid black
+      osc.fillStyle = '#000';
+      osc.fillRect(0, 0, ow, oh);
 
-        if (r < 3) continue;
+      // Per-pixel lighting
+      const img = osc.getImageData(0, 0, ow, oh);
+      const data = img.data;
+      const spx = px * scale;
+      const spy = py * scale;
+      const bl = beamLen * scale;
+      const fogCenter = 0.85;
+      const fogRadius = (lightRadius * 0.5) * scale;
 
-        const g = osc.createRadialGradient(cx, cy, 0, cx, cy, r);
-        g.addColorStop(0, 'rgba(0,0,0,0.8)');
-        g.addColorStop(0.2, 'rgba(0,0,0,0.6)');
-        g.addColorStop(0.5, 'rgba(0,0,0,0.2)');
-        g.addColorStop(0.8, 'rgba(0,0,0,0.03)');
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        osc.fillStyle = g;
-        osc.fillRect(cx - r, cy - r, r * 2, r * 2);
+      for (let y = 0; y < oh; y++) {
+        for (let x = 0; x < ow; x++) {
+          const dx = x - spx;
+          const dy = y - spy;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          // Angle from player to this pixel, relative to facing direction
+          const pixelAngle = Math.atan2(dy, dx);
+          let angleDiff = pixelAngle - angle;
+          // Normalize to [-PI, PI]
+          while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+          while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+          const absAngDiff = Math.abs(angleDiff);
+
+          let fog;
+          if (absAngDiff <= halfAngle && dist <= bl) {
+            // Inside spotlight cone: fog based on angle + distance falloff
+            // Angular falloff: cosine from center to edge
+            const angFalloff = Math.cos(absAngDiff / halfAngle * Math.PI / 2);
+            // Radial falloff: inverse square
+            const distNorm = dist / bl;
+            const radFalloff = 1 / (1 + 5 * distNorm * distNorm);
+            // Combined fog density (0=clear, 1=full fog)
+            const brightness = angFalloff * radFalloff;
+            fog = fogCenter * (1 - brightness * 0.85);
+          } else {
+            // Outside spotlight: normal fog based on distance from player
+            if (dist <= fogRadius) {
+              const t = dist / fogRadius;
+              fog = fogCenter + (1 - fogCenter) * t;
+            } else {
+              fog = 1;
+            }
+          }
+
+          const alpha = Math.round(fog * 255);
+          const idx = (y * ow + x) * 4;
+          data[idx + 3] = alpha; // set alpha (RGB stays 0 for black)
+        }
       }
-    }
 
-    // Draw the result (fog with cone hole) onto the main canvas
-    ctx.drawImage(offscreen, 0, 0);
+      osc.putImageData(img, 0, 0);
+
+      // Draw upscaled result onto main canvas
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(offscreen, 0, 0, INTERNAL_W, INTERNAL_H);
+      ctx.restore();
+    } else {
+      // Level 2 without flashlight: just draw fog
+      ctx.fillStyle = fogGrad;
+      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+    }
   } else {
     // Level 1: normal circular fog of war
     const gradient = ctx.createRadialGradient(px, py, lightRadius * 0.2, px, py, lightRadius);
