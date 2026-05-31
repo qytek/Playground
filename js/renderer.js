@@ -373,9 +373,7 @@ function drawLighting(offsetX, offsetY) {
 
       ctx.save();
       ctx.beginPath();
-      // Full screen rect (clockwise)
       ctx.rect(0, 0, INTERNAL_W, INTERNAL_H);
-      // Cone triangle (counter-clockwise for evenodd)
       ctx.moveTo(px, py);
       ctx.lineTo(
         px + Math.cos(angle + halfAngle) * coneLength,
@@ -388,12 +386,11 @@ function drawLighting(offsetX, offsetY) {
       ctx.closePath();
       ctx.clip('evenodd');
 
-      // Fog fills everywhere except the cone area
       ctx.fillStyle = fogGrad;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
       ctx.restore();
 
-      // Subtle warm light gradient inside cone (soft radial falloff)
+      // Inverse-square fog falloff inside cone + warm glow
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(px, py);
@@ -408,12 +405,28 @@ function drawLighting(offsetX, offsetY) {
       ctx.closePath();
       ctx.clip();
 
-      const coneGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
-      coneGrad.addColorStop(0, 'rgba(255,245,210,0.15)');
-      coneGrad.addColorStop(0.4, 'rgba(255,240,200,0.06)');
-      coneGrad.addColorStop(1, 'rgba(255,240,200,0)');
-      ctx.fillStyle = coneGrad;
+      // Fog falloff: darkness creeps back following 1/(1+decay*t^2)
+      // maxFog=0.55, decay=10 → 0,0.13,0.3,0.42,0.49,0.52 at t=0,0.2,0.4,0.6,0.8,1.0
+      const fogFalloff = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
+      fogFalloff.addColorStop(0, 'rgba(0,0,0,0)');
+      fogFalloff.addColorStop(0.2, 'rgba(0,0,0,0.13)');
+      fogFalloff.addColorStop(0.4, 'rgba(0,0,0,0.30)');
+      fogFalloff.addColorStop(0.6, 'rgba(0,0,0,0.42)');
+      fogFalloff.addColorStop(0.8, 'rgba(0,0,0,0.49)');
+      fogFalloff.addColorStop(1, 'rgba(0,0,0,0.52)');
+      ctx.fillStyle = fogFalloff;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+      // Warm glow: 1/(1+decay*t^2), maxWarm=0.06, decay=15
+      const warmGlow = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
+      warmGlow.addColorStop(0, 'rgba(255,245,210,0.06)');
+      warmGlow.addColorStop(0.2, 'rgba(255,242,205,0.04)');
+      warmGlow.addColorStop(0.4, 'rgba(255,240,200,0.02)');
+      warmGlow.addColorStop(0.6, 'rgba(255,238,195,0.01)');
+      warmGlow.addColorStop(1, 'rgba(255,238,195,0)');
+      ctx.fillStyle = warmGlow;
+      ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
       ctx.restore();
     } else {
       // No flashlight: fog everywhere
