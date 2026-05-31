@@ -95,22 +95,21 @@ function generateMaze(levelType) {
     exitRx = startRx < MAP_ROOMS / 2 ? MAP_ROOMS - 1 : 0;
     exitRy = startRy < MAP_ROOMS / 2 ? MAP_ROOMS - 1 : 0;
   } else {
-    // Exit room: ~17 rooms horizontally left or right of start
+    // Exit room: random 5-12 rooms horizontally left or right of start
     const dir = rng(startRx, startRy) < 0.5 ? -1 : 1;
-    exitRx = startRx + dir * 17;
+    const exitDist = 5 + Math.floor(rng(startRx, startRy + 999) * 8);
+    exitRx = startRx + dir * exitDist;
     exitRy = startRy;
   }
   roomTypes[rkey(exitRx, exitRy)] = 'exit';
 
-  // Almond water placement (backrooms only)
-  if (levelType !== 'parking') {
-    for (let x = 0; x < MAP_ROOMS; x++) {
-      for (let y = 0; y < MAP_ROOMS; y++) {
-        const rk = rkey(x, y);
-        if (roomTypes[rk] === 'start' || roomTypes[rk] === 'exit') continue;
-        if (rng(x + 300, y + 300) < 0.20) {
-          roomItems[rk] = { type: 'almond_water', picked: false };
-        }
+  // Place almond water in both levels
+  for (let x = 0; x < MAP_ROOMS; x++) {
+    for (let y = 0; y < MAP_ROOMS; y++) {
+      const rk = rkey(x, y);
+      if (roomTypes[rk] === 'start' || roomTypes[rk] === 'exit') continue;
+      if (rng(x + 300, y + 300) < 0.20) {
+        roomItems[rk] = { type: 'almond_water', picked: false };
       }
     }
   }
