@@ -375,48 +375,44 @@ function drawLighting(offsetX, offsetY) {
     osc.fillStyle = fogGrad;
     osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Soft fan: angular × radial grid for true 2D falloff
+    // Erase fan with soft edges: triangle fan using destination-out on offscreen
+    // Each triangle's erasure depends on both angle AND distance — no hard edges
     if (player && player.hasFlashlight) {
       const angle = player.facing;
       const beamLen = TILE * VISION_RADIUS;
-      const halfAngle = Math.PI / 5;
-      const angSteps = 40;
-      const radSteps = 10;
+      const halfAngle = Math.PI / 5;    // 36 degrees each side (72 total)
+      const steps = 40;                  // fine triangles for smooth blend
 
       osc.globalCompositeOperation = 'destination-out';
 
-      for (let ri = 0; ri < radSteps; ri++) {
-        const rd0 = ri / radSteps;
-        const rd1 = (ri + 1) / radSteps;
-        const r0 = beamLen * rd0;
-        const r1 = beamLen * rd1;
-        // Radial falloff at this band's midpoint (inverse square)
-        const rMid = (rd0 + rd1) / 2;
-        const radFalloff = 1 / (1 + 6 * rMid * rMid);
+      for (let i = 0; i < steps; i++) {
+        const t0 = i / steps;
+        const t1 = (i + 1) / steps;
+        const a0 = angle - halfAngle + t0 * halfAngle * 2;
+        const a1 = angle - halfAngle + t1 * halfAngle * 2;
 
-        for (let ai = 0; ai < angSteps; ai++) {
-          const t0 = ai / angSteps;
-          const t1 = (ai + 1) / angSteps;
-          const a0 = angle - halfAngle + t0 * halfAngle * 2;
-          const a1 = angle - halfAngle + t1 * halfAngle * 2;
+        // Angular falloff: 0 at beam center, 1 at beam edges
+        const midT = (t0 + t1) / 2;
+        const angleDist = Math.abs(midT - 0.5) * 2; // 0=center, 1=edge
+        const angularFalloff = Math.pow(Math.cos(angleDist * Math.PI / 2), 1.5);
 
-          // Angular falloff (cosine from beam center)
-          const aMid = (t0 + t1) / 2;
-          const angleDist = Math.abs(aMid - 0.5) * 2;
-          const angFalloff = Math.pow(Math.cos(angleDist * Math.PI / 2), 1.5);
+        // Radial falloff (inverse square)
+        const radialFalloff = 1 / (1 + 6 * midT * midT);
 
-          const erase = 0.8 * angFalloff * radFalloff;
+        // Combined erasure
+        const erase = 0.75 * angularFalloff * radialFalloff;
 
-          // Quad: two triangles forming a trapezoid band
-          osc.beginPath();
-          osc.moveTo(px + Math.cos(a0) * r0, py + Math.sin(a0) * r0);
-          osc.lineTo(px + Math.cos(a0) * r1, py + Math.sin(a0) * r1);
-          osc.lineTo(px + Math.cos(a1) * r1, py + Math.sin(a1) * r1);
-          osc.lineTo(px + Math.cos(a1) * r0, py + Math.sin(a1) * r0);
-          osc.closePath();
-          osc.fillStyle = `rgba(0,0,0,${erase.toFixed(4)})`;
-          osc.fill();
-        }
+        // Triangle extends to full beam length, slightly past for edge blending
+        const r0 = beamLen * (0.1 + 0.9 * t0);
+        const r1 = beamLen * (0.1 + 0.9 * t1);
+
+        osc.beginPath();
+        osc.moveTo(px, py);
+        osc.lineTo(px + Math.cos(a0) * r0, py + Math.sin(a0) * r0);
+        osc.lineTo(px + Math.cos(a1) * r1, py + Math.sin(a1) * r1);
+        osc.closePath();
+        osc.fillStyle = `rgba(0,0,0,${erase.toFixed(4)})`;
+        osc.fill();
       }
 
       osc.globalCompositeOperation = 'source-over';
