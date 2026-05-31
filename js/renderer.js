@@ -417,18 +417,25 @@ function drawLighting(offsetX, offsetY) {
             ambientFog = 1;
           }
 
-          // Spotlight contribution
+          // Spotlight: GLSL-style smoothstep angular + distance attenuation
           let fog = ambientFog;
-          if (absAngDiff < halfAngle && dist < bl) {
-            const distNorm = dist / bl;
-            // Angular falloff: cosine from beam center to edge
-            const angFalloff = Math.cos(absAngDiff / halfAngle * Math.PI / 2);
-            // Radial falloff: 1 at player, 0 at beam tip
-            const radFalloff = 1 - distNorm;
-            // Combined brightness (0=no spotlight, 1=full spotlight)
-            const brightness = angFalloff * radFalloff;
-            // Blend from ambient fog toward clear based on brightness
-            fog = ambientFog * (1 - brightness * 0.85);
+          if (dist < bl) {
+            // Angular attenuation (smoothstep between inner and outer cone)
+            const theta = Math.cos(absAngDiff); // dot(lightVector, -lightDir) in 2D
+            const innerCutOff = Math.cos(Math.PI / 8);   // ~22.5 deg inner cone
+            const outerCutOff = Math.cos(Math.PI / 5);   // ~36 deg outer cone (soft edge)
+            const epsilon = innerCutOff - outerCutOff;
+            const spotIntensity = Math.max(0, Math.min(1, (theta - outerCutOff) / epsilon));
+
+            // Distance attenuation: reaches 0 at beam tip (d=1)
+            const d = dist / bl;
+            const attenuation = Math.pow(1 - d, 1.5);
+
+            // Combined intensity (both angular and distance go to 0 at edges)
+            const intensity = attenuation * spotIntensity;
+
+            // Modulate fog: full intensity = clear, 0 = ambient
+            fog = ambientFog * (1 - intensity * 0.85);
           }
 
           const alpha = Math.round(fog * 255);
