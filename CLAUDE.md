@@ -4,7 +4,7 @@
 
 ## Tech Stack
 
-- Vanilla JS (ES5+), HTML5 Canvas, CSS3
+- Vanilla JS (ES6+), HTML5 Canvas, CSS3
 - Zero dependencies, no bundler, no TypeScript
 - Scripts loaded via `<script>` tags in load order (see below)
 - Web Audio API for sound
