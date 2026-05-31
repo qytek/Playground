@@ -254,11 +254,17 @@ function drawParkingRoom(rx, ry, offsetX, offsetY) {
         // Almond water bottle on concrete
         ctx.fillStyle = C_CONCRETE;
         ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
-        if (almondBottleImg && almondBottleImg.complete) {
+        if (almondBottleImg && almondBottleImg.complete && almondBottleImg.naturalWidth > 0) {
           ctx.drawImage(almondBottleImg, Math.floor(sx2 + 3), Math.floor(sy2 + 1), 10, 12);
+        } else {
+          // Fallback: blue bottle shape
+          ctx.fillStyle = '#5599cc';
+          ctx.fillRect(Math.floor(sx2 + 4), Math.floor(sy2 + 2), 6, 9);
+          ctx.fillStyle = '#3377aa';
+          ctx.fillRect(Math.floor(sx2 + 5), Math.floor(sy2 + 3), 4, 2);
         }
         const pulse2 = 0.5 + 0.5 * Math.sin(frameCount * 0.04);
-        ctx.fillStyle = `rgba(150,200,240,${0.15 + pulse2 * 0.1})`;
+        ctx.fillStyle = `rgba(150,200,240,${0.2 + pulse2 * 0.15})`;
         ctx.fillRect(Math.floor(sx2 + 3), Math.floor(sy2 + 1), 10, 12);
 
       } else {
@@ -383,22 +389,21 @@ function drawLighting(offsetX, offsetY) {
       ctx.closePath();
       ctx.clip();
 
-      // Clear the darkness inside the cone
-      ctx.clearRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-      // Soft radial gradient for smooth falloff within the cone
-      const grad = ctx.createRadialGradient(px, py, 0, px, py, coneLength * TILE);
-      grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(0.35, 'rgba(0,0,0,0)');
-      grad.addColorStop(0.6, 'rgba(0,0,0,0.25)');
-      grad.addColorStop(0.8, 'rgba(0,0,0,0.55)');
-      grad.addColorStop(1, 'rgba(0,0,0,0.8)');
-      ctx.fillStyle = grad;
+      // Smoothly erase fog inside the cone using destination-out
+      ctx.globalCompositeOperation = 'destination-out';
+      const eraseGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength * TILE);
+      eraseGrad.addColorStop(0, 'rgba(0,0,0,0.9)');
+      eraseGrad.addColorStop(0.25, 'rgba(0,0,0,0.7)');
+      eraseGrad.addColorStop(0.5, 'rgba(0,0,0,0.4)');
+      eraseGrad.addColorStop(0.75, 'rgba(0,0,0,0.15)');
+      eraseGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = eraseGrad;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+      ctx.globalCompositeOperation = 'source-over';
 
-      // Warm light tint near the player
+      // Subtle warm glow at center
       const warmGrad = ctx.createRadialGradient(px, py, 0, px, py, TILE * 3);
-      warmGrad.addColorStop(0, 'rgba(255,245,210,0.06)');
+      warmGrad.addColorStop(0, 'rgba(255,250,220,0.06)');
       warmGrad.addColorStop(0.5, 'rgba(255,240,200,0.02)');
       warmGrad.addColorStop(1, 'rgba(255,240,200,0)');
       ctx.fillStyle = warmGrad;
