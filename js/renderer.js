@@ -375,47 +375,57 @@ function drawLighting(offsetX, offsetY) {
     osc.fillStyle = fogGrad;
     osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Erase fan with soft edges: triangle fan using destination-out on offscreen
-    // Each triangle's erasure depends on both angle AND distance — no hard edges
+    // Soft fan: angular falloff (triangles) + radial falloff (gradient via destination-in)
     if (player && player.hasFlashlight) {
       const angle = player.facing;
       const beamLen = TILE * VISION_RADIUS;
-      const halfAngle = Math.PI / 5;    // 36 degrees each side (72 total)
-      const steps = 40;                  // fine triangles for smooth blend
+      const halfAngle = Math.PI / 5;
+      const steps = 40;
 
+      // Clip to fan shape for all operations below
+      osc.save();
+      osc.beginPath();
+      osc.moveTo(px, py);
+      osc.lineTo(px + Math.cos(angle - halfAngle) * beamLen, py + Math.sin(angle - halfAngle) * beamLen);
+      osc.lineTo(px + Math.cos(angle + halfAngle) * beamLen, py + Math.sin(angle + halfAngle) * beamLen);
+      osc.closePath();
+      osc.clip();
+
+      // Pass 1: angular falloff via triangle fan (all same outer radius)
       osc.globalCompositeOperation = 'destination-out';
-
       for (let i = 0; i < steps; i++) {
         const t0 = i / steps;
         const t1 = (i + 1) / steps;
         const a0 = angle - halfAngle + t0 * halfAngle * 2;
         const a1 = angle - halfAngle + t1 * halfAngle * 2;
 
-        // Angular falloff: 0 at beam center, 1 at beam edges
         const midT = (t0 + t1) / 2;
-        const angleDist = Math.abs(midT - 0.5) * 2; // 0=center, 1=edge
-        const angularFalloff = Math.pow(Math.cos(angleDist * Math.PI / 2), 1.5);
-
-        // Radial falloff (inverse square)
-        const radialFalloff = 1 / (1 + 6 * midT * midT);
-
-        // Combined erasure
-        const erase = 0.75 * angularFalloff * radialFalloff;
-
-        // Triangle extends to full beam length, slightly past for edge blending
-        const r0 = beamLen * (0.1 + 0.9 * t0);
-        const r1 = beamLen * (0.1 + 0.9 * t1);
+        const angleDist = Math.abs(midT - 0.5) * 2;
+        const erase = 0.8 * Math.pow(Math.cos(angleDist * Math.PI / 2), 1.5);
 
         osc.beginPath();
         osc.moveTo(px, py);
-        osc.lineTo(px + Math.cos(a0) * r0, py + Math.sin(a0) * r0);
-        osc.lineTo(px + Math.cos(a1) * r1, py + Math.sin(a1) * r1);
+        osc.lineTo(px + Math.cos(a0) * beamLen, py + Math.sin(a0) * beamLen);
+        osc.lineTo(px + Math.cos(a1) * beamLen, py + Math.sin(a1) * beamLen);
         osc.closePath();
         osc.fillStyle = `rgba(0,0,0,${erase.toFixed(4)})`;
         osc.fill();
       }
 
+      // Pass 2: radial falloff — fade beam with distance
+      osc.globalCompositeOperation = 'destination-in';
+      const radGrad = osc.createRadialGradient(px, py, 0, px, py, beamLen);
+      radGrad.addColorStop(0, 'rgba(0,0,0,1)');
+      radGrad.addColorStop(0.15, 'rgba(0,0,0,0.95)');
+      radGrad.addColorStop(0.35, 'rgba(0,0,0,0.7)');
+      radGrad.addColorStop(0.55, 'rgba(0,0,0,0.35)');
+      radGrad.addColorStop(0.75, 'rgba(0,0,0,0.1)');
+      radGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      osc.fillStyle = radGrad;
+      osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
       osc.globalCompositeOperation = 'source-over';
+      osc.restore();
     }
 
     // Draw the result (fog with cone hole) onto the main canvas
