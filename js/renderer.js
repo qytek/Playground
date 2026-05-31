@@ -360,12 +360,12 @@ function drawLighting(offsetX, offsetY) {
 
   // Tighter fog on level 2
   if (currentLevel === 2) {
-    // Full-screen dark fog first (center visible enough to find items)
+    // Full-screen dark fog first (very dim without flashlight)
     const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, lightRadius);
-    fogGrad.addColorStop(0, 'rgba(0,0,0,0.45)');
-    fogGrad.addColorStop(0.3, 'rgba(0,0,0,0.65)');
-    fogGrad.addColorStop(0.6, 'rgba(0,0,0,0.85)');
-    fogGrad.addColorStop(1, 'rgba(0,0,0,0.95)');
+    fogGrad.addColorStop(0, 'rgba(0,0,0,0.7)');
+    fogGrad.addColorStop(0.25, 'rgba(0,0,0,0.8)');
+    fogGrad.addColorStop(0.5, 'rgba(0,0,0,0.9)');
+    fogGrad.addColorStop(1, 'rgba(0,0,0,0.97)');
     ctx.fillStyle = fogGrad;
     ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
@@ -389,13 +389,13 @@ function drawLighting(offsetX, offsetY) {
       ctx.closePath();
       ctx.clip();
 
-      // Overwrite dark fog with much lighter fog: clear at center, slightly foggy at edge
+      // Overwrite dark fog with much lighter fog: clear near player, fading at edges
       const coneGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength * TILE);
       coneGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      coneGrad.addColorStop(0.2, 'rgba(0,0,0,0.03)');
-      coneGrad.addColorStop(0.4, 'rgba(0,0,0,0.1)');
-      coneGrad.addColorStop(0.65, 'rgba(0,0,0,0.25)');
-      coneGrad.addColorStop(1, 'rgba(0,0,0,0.5)');
+      coneGrad.addColorStop(0.2, 'rgba(0,0,0,0)');
+      coneGrad.addColorStop(0.4, 'rgba(0,0,0,0.05)');
+      coneGrad.addColorStop(0.65, 'rgba(0,0,0,0.15)');
+      coneGrad.addColorStop(1, 'rgba(0,0,0,0.35)');
       ctx.fillStyle = coneGrad;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 

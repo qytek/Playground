@@ -96,8 +96,10 @@ function updatePlayer(dt) {
   }
 
   // Pick up items on contact (detect by tile type, verify via roomItems)
+  // Note: tile 5 is almond_water in L1 but parking line in L2 — exclude L2
   const playerTile = getTile(p.x, p.y);
-  const isItemTile = playerTile === 5 || playerTile === 7 || playerTile === 8;
+  const isItemTile = playerTile === 7 || playerTile === 8 ||
+    (currentLevel === 1 && playerTile === 5);
   if (isItemTile) {
     const { rx: prx2, ry: pry2 } = worldToRoom(p.x, p.y);
     const itemKey = rkey(prx2, pry2);
