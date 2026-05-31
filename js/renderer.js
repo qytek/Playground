@@ -375,35 +375,47 @@ function drawLighting(offsetX, offsetY) {
     osc.fillStyle = fogGrad;
     osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Erase fan-shaped area: wide clip cone, gradient fades before touching edges
+    // Erase fan with soft edges: triangle fan using destination-out on offscreen
+    // Each triangle's erasure depends on both angle AND distance — no hard edges
     if (player && player.hasFlashlight) {
       const angle = player.facing;
-      const gradRadius = TILE * VISION_RADIUS;     // gradient fades within this
-      const clipLen = gradRadius * 1.8;             // clip extends well beyond gradient
-      const halfAngle = Math.PI / 3.5;              // wide ~51 degrees each side
-
-      osc.save();
-      osc.beginPath();
-      osc.moveTo(px, py);
-      osc.lineTo(px + Math.cos(angle - halfAngle) * clipLen, py + Math.sin(angle - halfAngle) * clipLen);
-      osc.lineTo(px + Math.cos(angle + halfAngle) * clipLen, py + Math.sin(angle + halfAngle) * clipLen);
-      osc.closePath();
-      osc.clip();
+      const beamLen = TILE * VISION_RADIUS;
+      const halfAngle = Math.PI / 5;    // 36 degrees each side (72 total)
+      const steps = 40;                  // fine triangles for smooth blend
 
       osc.globalCompositeOperation = 'destination-out';
-      const lightGrad = osc.createRadialGradient(px, py, 0, px, py, gradRadius);
-      lightGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
-      lightGrad.addColorStop(0.2, 'rgba(0,0,0,0.55)');
-      lightGrad.addColorStop(0.4, 'rgba(0,0,0,0.25)');
-      lightGrad.addColorStop(0.6, 'rgba(0,0,0,0.08)');
-      lightGrad.addColorStop(0.75, 'rgba(0,0,0,0.025)');
-      lightGrad.addColorStop(0.85, 'rgba(0,0,0,0.008)');
-      lightGrad.addColorStop(0.92, 'rgba(0,0,0,0.002)');
-      lightGrad.addColorStop(0.97, 'rgba(0,0,0,0.0005)');
-      lightGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      osc.fillStyle = lightGrad;
-      osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-      osc.restore();
+
+      for (let i = 0; i < steps; i++) {
+        const t0 = i / steps;
+        const t1 = (i + 1) / steps;
+        const a0 = angle - halfAngle + t0 * halfAngle * 2;
+        const a1 = angle - halfAngle + t1 * halfAngle * 2;
+
+        // Angular falloff: 0 at beam center, 1 at beam edges
+        const midT = (t0 + t1) / 2;
+        const angleDist = Math.abs(midT - 0.5) * 2; // 0=center, 1=edge
+        const angularFalloff = Math.pow(Math.cos(angleDist * Math.PI / 2), 1.5);
+
+        // Radial falloff (inverse square)
+        const radialFalloff = 1 / (1 + 6 * midT * midT);
+
+        // Combined erasure
+        const erase = 0.75 * angularFalloff * radialFalloff;
+
+        // Triangle extends to full beam length, slightly past for edge blending
+        const r0 = beamLen * (0.1 + 0.9 * t0);
+        const r1 = beamLen * (0.1 + 0.9 * t1);
+
+        osc.beginPath();
+        osc.moveTo(px, py);
+        osc.lineTo(px + Math.cos(a0) * r0, py + Math.sin(a0) * r0);
+        osc.lineTo(px + Math.cos(a1) * r1, py + Math.sin(a1) * r1);
+        osc.closePath();
+        osc.fillStyle = `rgba(0,0,0,${erase.toFixed(4)})`;
+        osc.fill();
+      }
+
+      osc.globalCompositeOperation = 'source-over';
     }
 
     // Draw the result (fog with cone hole) onto the main canvas
