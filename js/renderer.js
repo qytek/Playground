@@ -408,25 +408,27 @@ function drawLighting(offsetX, offsetY) {
           while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
           const absAngDiff = Math.abs(angleDiff);
 
-          let fog;
-          if (absAngDiff <= halfAngle && dist <= bl) {
-            // Inside spotlight cone: fog based on angle + distance falloff
-            // Angular falloff: cosine from center to edge
-            const angFalloff = Math.cos(absAngDiff / halfAngle * Math.PI / 2);
-            // Radial falloff: inverse square
-            const distNorm = dist / bl;
-            const radFalloff = 1 / (1 + 5 * distNorm * distNorm);
-            // Combined fog density (0=clear, 1=full fog)
-            const brightness = angFalloff * radFalloff;
-            fog = fogCenter * (1 - brightness * 0.85);
+          // Ambient fog at this pixel (based on distance from player)
+          let ambientFog;
+          if (dist <= fogRadius) {
+            const t = dist / fogRadius;
+            ambientFog = fogCenter + (1 - fogCenter) * t;
           } else {
-            // Outside spotlight: normal fog based on distance from player
-            if (dist <= fogRadius) {
-              const t = dist / fogRadius;
-              fog = fogCenter + (1 - fogCenter) * t;
-            } else {
-              fog = 1;
-            }
+            ambientFog = 1;
+          }
+
+          // Spotlight contribution
+          let fog = ambientFog;
+          if (absAngDiff < halfAngle && dist < bl) {
+            const distNorm = dist / bl;
+            // Angular falloff: cosine from beam center to edge
+            const angFalloff = Math.cos(absAngDiff / halfAngle * Math.PI / 2);
+            // Radial falloff: 1 at player, 0 at beam tip
+            const radFalloff = 1 - distNorm;
+            // Combined brightness (0=no spotlight, 1=full spotlight)
+            const brightness = angFalloff * radFalloff;
+            // Blend from ambient fog toward clear based on brightness
+            fog = ambientFog * (1 - brightness * 0.85);
           }
 
           const alpha = Math.round(fog * 255);
