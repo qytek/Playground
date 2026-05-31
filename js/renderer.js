@@ -375,16 +375,22 @@ function drawLighting(offsetX, offsetY) {
     osc.fillStyle = fogGrad;
     osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Erase fog in a soft circle ahead of player (no geometry, just gradient)
+    // Erase fan-shaped area: clip to cone, fill with radial gradient
     if (player && player.hasFlashlight) {
       const angle = player.facing;
-      const offsetDist = TILE * 3;           // gradient center ahead of player
-      const lightCX = px + Math.cos(angle) * offsetDist;
-      const lightCY = py + Math.sin(angle) * offsetDist;
-      const lightRadius = TILE * VISION_RADIUS;
+      const coneLen = TILE * VISION_RADIUS;
+      const halfAngle = Math.PI / 5; // 36 degrees each side
+
+      osc.save();
+      osc.beginPath();
+      osc.moveTo(px, py);
+      osc.lineTo(px + Math.cos(angle - halfAngle) * coneLen, py + Math.sin(angle - halfAngle) * coneLen);
+      osc.lineTo(px + Math.cos(angle + halfAngle) * coneLen, py + Math.sin(angle + halfAngle) * coneLen);
+      osc.closePath();
+      osc.clip();
 
       osc.globalCompositeOperation = 'destination-out';
-      const lightGrad = osc.createRadialGradient(lightCX, lightCY, 0, lightCX, lightCY, lightRadius);
+      const lightGrad = osc.createRadialGradient(px, py, 0, px, py, coneLen);
       lightGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
       lightGrad.addColorStop(0.15, 'rgba(0,0,0,0.65)');
       lightGrad.addColorStop(0.3, 'rgba(0,0,0,0.35)');
@@ -393,6 +399,7 @@ function drawLighting(offsetX, offsetY) {
       lightGrad.addColorStop(1, 'rgba(0,0,0,0)');
       osc.fillStyle = lightGrad;
       osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+      osc.restore();
     }
 
     // Draw the result (fog with cone hole) onto the main canvas
