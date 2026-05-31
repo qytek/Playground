@@ -368,7 +368,7 @@ function drawLighting(offsetX, offsetY) {
     ctx.fillStyle = fogGrad;
     ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Flashlight cone — redraw with much lower opacity to punch through fog
+    // Flashlight cone — use 'lighter' compositing to add brightness through fog
     if (player && player.hasFlashlight) {
       const angle = player.facing;
       const coneLength = TILE * VISION_RADIUS * 2;
@@ -388,13 +388,16 @@ function drawLighting(offsetX, offsetY) {
       ctx.closePath();
       ctx.clip();
 
-      // Near-clear inside cone, gradually darkening toward tip
+      // 'lighter' adds RGB values — brightens the black fog
+      ctx.globalCompositeOperation = 'lighter';
       const coneGrad = ctx.createRadialGradient(px, py, 0, px, py, coneLength);
-      coneGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      coneGrad.addColorStop(0.5, 'rgba(0,0,0,0.1)');
-      coneGrad.addColorStop(1, 'rgba(0,0,0,0.4)');
+      coneGrad.addColorStop(0, 'rgba(40,35,25,0.9)');
+      coneGrad.addColorStop(0.3, 'rgba(30,26,18,0.6)');
+      coneGrad.addColorStop(0.6, 'rgba(15,12,8,0.3)');
+      coneGrad.addColorStop(1, 'rgba(5,4,2,0.1)');
       ctx.fillStyle = coneGrad;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+      ctx.globalCompositeOperation = 'source-over';
       ctx.restore();
     }
   } else {
