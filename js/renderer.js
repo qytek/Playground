@@ -349,7 +349,7 @@ function drawLighting(offsetX, offsetY) {
   const gradient = ctx.createRadialGradient(px, py, lightRadius * innerStop, px, py, lightRadius);
   gradient.addColorStop(0, 'rgba(0,0,0,0)');
   gradient.addColorStop(midStop, 'rgba(0,0,0,0)');
-  gradient.addColorStop(outerStop, `rgba(0,0,0,0.65)`);
+  gradient.addColorStop(outerStop, `rgba(0,0,0,${currentLevel === 2 ? 0.65 : 0.55})`);
   gradient.addColorStop(1, `rgba(0,0,0,${outerAlpha})`);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
@@ -400,40 +400,39 @@ function drawLighting(offsetX, offsetY) {
 
   // Flashlight spotlight (Level 2)
   if (currentLevel === 2 && player && player.hasFlashlight) {
-    const fx = px;
-    const fy = py;
     const angle = player.facing;
     const coneLength = TILE * 6;
     const coneHalfAngle = Math.PI / 6;
     const steps = 12;
 
     ctx.save();
-    // Draw cone as a series of translucent triangles
+    // Draw symmetric cone: brightest/longest at center, fading to edges
     for (let i = 0; i < steps; i++) {
       const t0 = i / steps;
       const t1 = (i + 1) / steps;
       const a0 = angle - coneHalfAngle + t0 * coneHalfAngle * 2;
       const a1 = angle - coneHalfAngle + t1 * coneHalfAngle * 2;
-      const r0 = coneLength * (0.3 + 0.7 * t0);
-      const r1 = coneLength * (0.3 + 0.7 * t1);
 
-      const alpha = 0.12 - (t0 + t1) / 2 * 0.06;
+      // Distance from beam center (0 at center, 1 at edges)
+      const distFromCenter = Math.abs((t0 + t1) / 2 - 0.5) * 2;
+      const r = coneLength * (1.0 - distFromCenter * 0.6);
+      const alpha = 0.14 * (1 - distFromCenter);
 
       ctx.beginPath();
-      ctx.moveTo(fx, fy);
-      ctx.lineTo(fx + Math.cos(a0) * r0, fy + Math.sin(a0) * r0);
-      ctx.lineTo(fx + Math.cos(a1) * r1, fy + Math.sin(a1) * r1);
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + Math.cos(a0) * r, py + Math.sin(a0) * r);
+      ctx.lineTo(px + Math.cos(a1) * r, py + Math.sin(a1) * r);
       ctx.closePath();
       ctx.fillStyle = `rgba(255,240,200,${alpha})`;
       ctx.fill();
     }
 
     // Hot spot at center
-    const hotGrad = ctx.createRadialGradient(fx, fy, 0, fx, fy, TILE * 2);
+    const hotGrad = ctx.createRadialGradient(px, py, 0, px, py, TILE * 2);
     hotGrad.addColorStop(0, 'rgba(255,250,220,0.15)');
     hotGrad.addColorStop(1, 'rgba(255,240,200,0)');
     ctx.fillStyle = hotGrad;
-    ctx.fillRect(fx - TILE * 2, fy - TILE * 2, TILE * 4, TILE * 4);
+    ctx.fillRect(px - TILE * 2, py - TILE * 2, TILE * 4, TILE * 4);
 
     ctx.restore();
   }
