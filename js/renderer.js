@@ -375,28 +375,31 @@ function drawLighting(offsetX, offsetY) {
     osc.fillStyle = fogGrad;
     osc.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
 
-    // Elliptical beam: scale transform stretches gradient forward, no geometry
+    // Fan via stacked gradients: circles at increasing distances with increasing radii
     if (player && player.hasFlashlight) {
       const angle = player.facing;
       const beamLen = TILE * VISION_RADIUS;
-
-      osc.save();
-      osc.translate(px, py);
-      osc.rotate(angle);
-      osc.scale(2.5, 0.6); // stretch forward, narrow sideways → elliptical beam
+      const halfAngle = Math.PI / 5;
+      const rings = 8;
 
       osc.globalCompositeOperation = 'destination-out';
-      const ellipGrad = osc.createRadialGradient(0, 0, 0, 0, 0, beamLen);
-      ellipGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
-      ellipGrad.addColorStop(0.2, 'rgba(0,0,0,0.65)');
-      ellipGrad.addColorStop(0.4, 'rgba(0,0,0,0.35)');
-      ellipGrad.addColorStop(0.6, 'rgba(0,0,0,0.12)');
-      ellipGrad.addColorStop(0.8, 'rgba(0,0,0,0.03)');
-      ellipGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      osc.fillStyle = ellipGrad;
-      osc.fillRect(-beamLen, -beamLen, beamLen * 2, beamLen * 2);
 
-      osc.restore();
+      for (let i = 0; i < rings; i++) {
+        const t = (i + 0.5) / rings;  // distance along beam (0..1)
+        const cx = px + Math.cos(angle) * beamLen * t;
+        const cy = py + Math.sin(angle) * beamLen * t;
+        const r = beamLen * t * Math.tan(halfAngle) * 1.3; // slightly larger for overlap
+
+        if (r < 4) continue; // skip tiny circles near player
+
+        const g = osc.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, 'rgba(0,0,0,0.75)');
+        g.addColorStop(0.3, 'rgba(0,0,0,0.5)');
+        g.addColorStop(0.6, 'rgba(0,0,0,0.2)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        osc.fillStyle = g;
+        osc.fillRect(cx - r, cy - r, r * 2, r * 2);
+      }
     }
 
     // Draw the result (fog with cone hole) onto the main canvas
