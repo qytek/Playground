@@ -361,6 +361,7 @@ function drawLighting(offsetX, offsetY) {
   // Tighter fog on level 2
   if (currentLevel === 2) {
     // Full-screen dark fog first (very dim without flashlight)
+    if (frameCount % 60 === 0) console.log('[lighting] fog radius:', (lightRadius * 0.5).toFixed(0), 'cone length:', (TILE * VISION_RADIUS * 2).toFixed(0));
     const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, lightRadius * 0.5);
     fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
     fogGrad.addColorStop(0.25, 'rgba(0,0,0,0.9)');
