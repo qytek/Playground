@@ -7,7 +7,7 @@ const roomItems = {};   // key: "rx,ry" -> { type: 'almond_water', picked: bool 
 
 // ============ GENERIC MAZE GENERATION ============
 // Uses the current global MAP_ROOMS value
-// levelType: 'backrooms' | 'parking'
+// levelType: 'backrooms' | 'parking' | 'electrical'
 function generateMaze(levelType) {
   // Clear
   for (const k in roomGraph) delete roomGraph[k];
@@ -77,6 +77,12 @@ function generateMaze(levelType) {
       const r = rng(x + 100, y + 100);
       if (levelType === 'parking') {
         roomTypes[rkey(x,y)] = 'normal';
+      } else if (levelType === 'electrical') {
+        // Electrical station: higher dark/flicker ratio (power outages)
+        if (r < 0.18) roomTypes[rkey(x,y)] = 'dark';
+        else if (r < 0.30) roomTypes[rkey(x,y)] = 'flicker';
+        else if (r < 0.42) roomTypes[rkey(x,y)] = 'machine';
+        else roomTypes[rkey(x,y)] = 'normal';
       } else {
         if (r < 0.12) roomTypes[rkey(x,y)] = 'dark';
         else if (r < 0.20) roomTypes[rkey(x,y)] = 'flicker';
@@ -94,6 +100,10 @@ function generateMaze(levelType) {
     // Exit: far corner from start
     exitRx = startRx < MAP_ROOMS / 2 ? MAP_ROOMS - 1 : 0;
     exitRy = startRy < MAP_ROOMS / 2 ? MAP_ROOMS - 1 : 0;
+  } else if (levelType === 'electrical') {
+    // Exit: far side from start (electrical station)
+    exitRx = startRx < MAP_ROOMS / 2 ? MAP_ROOMS - 2 : 1;
+    exitRy = startRy < MAP_ROOMS / 2 ? MAP_ROOMS - 2 : 1;
   } else {
     // Exit room: random 5-12 rooms horizontally left or right of start
     const dir = rng(startRx, startRy) < 0.5 ? -1 : 1;
@@ -117,8 +127,8 @@ function generateMaze(levelType) {
   }
   console.log('[maze.js] Level:', levelType, 'MAP_ROOMS:', MAP_ROOMS, 'almond waters placed:', almondCount);
 
-  // Flashlight placement (parking garage only)
-  if (levelType === 'parking') {
+  // Flashlight placement (parking garage and electrical station)
+  if (levelType === 'parking' || levelType === 'electrical') {
     // Pick a random room between start and exit (not in start or exit rooms)
     const midX = Math.floor((startRx + exitRx) / 2);
     const midY = Math.floor((startRy + exitRy) / 2);
@@ -135,7 +145,7 @@ function generateMaze(levelType) {
       }
     }
     if (!Object.values(roomItems).some(function(item) { return item.type === 'flashlight'; })) {
-      console.warn('[maze.js] Failed to place flashlight in level 2');
+      console.warn('[maze.js] Failed to place flashlight in level:', levelType);
     }
   }
 

@@ -57,6 +57,16 @@ function isSolid(wx, wy) {
     }
   }
 
+  // Check machine collision (Level 3 electrical station)
+  const machines = machineData[rkey(rx, ry)];
+  if (machines) {
+    for (const mach of machines) {
+      if (tx >= mach.tx && tx < mach.tx + mach.w && ty >= mach.ty && ty < mach.ty + mach.h) {
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 

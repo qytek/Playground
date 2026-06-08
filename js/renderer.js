@@ -21,6 +21,23 @@ const C_PARKING_LINE = '#ddd';
 const C_ELEVATOR_DOOR = '#556';
 const C_ELEVATOR_GLOW = '#88ccff';
 
+// Electrical station color palette
+const C_BRICK = '#8b5e3c';
+const C_BRICK_DARK = '#6b3f2a';
+const C_BRICK_TRIM = '#4a2a1a';
+const C_METAL_FLOOR = '#5c5c5c';
+const C_METAL_DARK = '#4a4a4a';
+const C_METAL_WET = '#3e3e3e';
+const C_PIPE = '#777';
+const C_PIPE_DARK = '#555';
+const C_WIRE = '#8b4513';
+const C_MACHINE = '#3a3a3a';
+const C_MACHINE_LIGHT = '#ff6622';
+const C_ELECTRIC_LIGHT = '#ffe8d0';
+const C_ELECTRIC_DOORWAY = '#1a1a1a';
+const C_ELEVATOR_METAL = '#556';
+const C_ELEVATOR_GLOW_L3 = '#88ccff';
+
 // === SPRITE SHEET ===
 let spriteSheet = null;
 let spriteFW = 0, spriteFH = 0;
@@ -288,6 +305,231 @@ function drawParkingRoom(rx, ry, offsetX, offsetY) {
   drawCarsInRoom(rx, ry, sx, sy, offsetX, offsetY);
 }
 
+// ============ ELECTRICAL STATION ROOM DRAWING ============
+function drawElectricalRoom(rx, ry, offsetX, offsetY) {
+  const sx = rx * ROOM_PX;
+  const sy = ry * ROOM_PX;
+  const tiles = generateRoomTiles(rx, ry);
+  const rtype = roomTypes[rkey(rx, ry)] || 'normal';
+
+  for (let ty = 0; ty < ROOM_TILES; ty++) {
+    for (let tx = 0; tx < ROOM_TILES; tx++) {
+      const wx = sx + tx * TILE;
+      const wy = sy + ty * TILE;
+      const sx2 = wx - offsetX;
+      const sy2 = wy - offsetY;
+
+      if (sx2 < -TILE || sx2 > INTERNAL_W + TILE || sy2 < -TILE || sy2 > INTERNAL_H + TILE) continue;
+
+      const tile = tiles[ty][tx];
+
+      if (tile === 1) {
+        // Brick wall
+        const isEdge = (tx === 0 || tx === ROOM_TILES - 1 || ty === 0 || ty === ROOM_TILES - 1);
+        ctx.fillStyle = isEdge ? C_BRICK_DARK : C_BRICK;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        // Mortar lines
+        if ((tx + ty * 5) % 6 === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.12)';
+          ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, 1);
+        }
+        if ((tx + ty * 7) % 8 === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.06)';
+          ctx.fillRect(Math.floor(sx2 + TILE/2), Math.floor(sy2), 1, TILE);
+        }
+
+        // Bottom trim
+        if (ty === ROOM_TILES - 1 || (ty > 0 && tiles[ty+1] && tiles[ty+1][tx] === 0)) {
+          ctx.fillStyle = C_BRICK_TRIM;
+          ctx.fillRect(Math.floor(sx2), Math.floor(sy2) + TILE - 3, TILE, 3);
+        }
+
+      } else if (tile === 2) {
+        // Dark doorway opening
+        ctx.fillStyle = C_ELECTRIC_DOORWAY;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+      } else if (tile === 3) {
+        // Fluorescent light panel
+        ctx.fillStyle = C_METAL_FLOOR;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        const flicker = rtype === 'flicker'
+          ? (Math.sin(frameCount * 0.3 + hash(rx, ry)) * 0.5 + 0.5) * (Math.sin(frameCount * 1.9 + hash(rx + 50, ry)) > 0.82 ? 0 : 1)
+          : 1;
+
+        // Warm industrial light glow
+        ctx.fillStyle = `rgba(255,232,208,${0.2 * flicker})`;
+        ctx.fillRect(Math.floor(sx2 + 1), Math.floor(sy2 + 1), TILE - 2, TILE - 2);
+
+        // Light tube
+        ctx.fillStyle = `rgba(255,240,220,${0.35 * flicker})`;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2 + TILE/2 - 1), TILE, 2);
+
+      } else if (tile === 4) {
+        // Elevator exit — industrial metal doors
+        ctx.fillStyle = C_METAL_FLOOR;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.04);
+        ctx.fillStyle = C_ELEVATOR_METAL;
+        ctx.fillRect(Math.floor(sx2 + 1), Math.floor(sy2), TILE/2 - 1, TILE);
+        ctx.fillStyle = '#667';
+        ctx.fillRect(Math.floor(sx2 + TILE/2 + 1), Math.floor(sy2), TILE/2 - 1, TILE);
+
+        // Door gap glow
+        ctx.fillStyle = `rgba(130,200,255,${0.4 + pulse * 0.3})`;
+        ctx.fillRect(Math.floor(sx2 + TILE/2 - 0.5), Math.floor(sy2), 1, TILE);
+
+        // Up arrow
+        ctx.fillStyle = `rgba(130,200,255,${0.6 + pulse * 0.3})`;
+        ctx.fillRect(Math.floor(sx2 + TILE/2 - 2), Math.floor(sy2 + 2), 4, 1);
+        ctx.fillRect(Math.floor(sx2 + TILE/2 - 1), Math.floor(sy2 + 1), 2, 2);
+
+        // Particles
+        for (let i = 0; i < 2; i++) {
+          const px = sx2 + TILE/2 + Math.sin(frameCount * 0.03 + i) * TILE;
+          const py = sy2 + TILE/2 + Math.cos(frameCount * 0.03 + i) * TILE;
+          ctx.fillStyle = `rgba(150,220,255,${0.3 + pulse * 0.2})`;
+          ctx.fillRect(Math.floor(px), Math.floor(py), 1, 1);
+        }
+
+      } else if (tile === 5) {
+        // Pipe — metallic cylinder on wall/ceiling
+        ctx.fillStyle = C_METAL_FLOOR;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        // Pipe body
+        const isHorizontal = ty === 1;
+        if (isHorizontal) {
+          ctx.fillStyle = C_PIPE;
+          ctx.fillRect(Math.floor(sx2), Math.floor(sy2 + TILE/2 - 2), TILE, 4);
+          ctx.fillStyle = C_PIPE_DARK;
+          ctx.fillRect(Math.floor(sx2), Math.floor(sy2 + TILE/2), TILE, 1);
+        } else {
+          ctx.fillStyle = C_PIPE;
+          ctx.fillRect(Math.floor(sx2 + TILE/2 - 2), Math.floor(sy2), 4, TILE);
+          ctx.fillStyle = C_PIPE_DARK;
+          ctx.fillRect(Math.floor(sx2 + TILE/2), Math.floor(sy2), 1, TILE);
+        }
+
+        // Wire dangling from pipe (occasional)
+        const v = hash(rx * 100 + tx, ry * 100 + ty) % 100;
+        if (v < 25) {
+          ctx.fillStyle = C_WIRE;
+          ctx.fillRect(Math.floor(sx2 + TILE/2 - 0.5), Math.floor(sy2 + TILE/2), 1, TILE/2);
+        }
+
+      } else if (tile === 6) {
+        // Electrical machine — drawn via machineData, fallback here
+        ctx.fillStyle = C_METAL_FLOOR;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+      } else if (tile === 7) {
+        // Flashlight item
+        ctx.fillStyle = C_METAL_FLOOR;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+        const fx = Math.floor(sx2 + TILE/2) - 2;
+        const fy = Math.floor(sy2 + TILE/2);
+        ctx.fillStyle = '#444';
+        ctx.fillRect(fx - 1, fy - 3, 7, 5);
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(fx + 6, fy - 2, 3, 3);
+        const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.04);
+        ctx.fillStyle = `rgba(255,215,0,${0.2 + pulse * 0.15})`;
+        ctx.fillRect(fx + 5, fy - 3, 5, 5);
+
+      } else if (tile === 8) {
+        // Almond water bottle on metal floor
+        ctx.fillStyle = C_METAL_FLOOR;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+        if (almondBottleImg && almondBottleImg.complete && almondBottleImg.naturalWidth > 0) {
+          ctx.drawImage(almondBottleImg, Math.floor(sx2 + 3), Math.floor(sy2 + 1), 10, 12);
+        } else {
+          ctx.fillStyle = '#5599cc';
+          ctx.fillRect(Math.floor(sx2 + 4), Math.floor(sy2 + 2), 6, 9);
+          ctx.fillStyle = '#3377aa';
+          ctx.fillRect(Math.floor(sx2 + 5), Math.floor(sy2 + 3), 4, 2);
+        }
+        const pulse2 = 0.5 + 0.5 * Math.sin(frameCount * 0.04);
+        ctx.fillStyle = `rgba(150,200,240,${0.2 + pulse2 * 0.15})`;
+        ctx.fillRect(Math.floor(sx2 + 3), Math.floor(sy2 + 1), 10, 12);
+
+      } else {
+        // Metal grate floor with variation
+        const v = hash(rx * 100 + tx, ry * 100 + ty) % 100;
+        const shade = v < 12 ? C_METAL_DARK : v < 16 ? C_METAL_WET : C_METAL_FLOOR;
+        ctx.fillStyle = shade;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        // Subtle grate pattern
+        if ((tx + ty) % 3 === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.06)';
+          ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, 1);
+        }
+        if ((tx + ty) % 5 === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.04)';
+          ctx.fillRect(Math.floor(sx2 + TILE/2), Math.floor(sy2), 1, TILE);
+        }
+      }
+    }
+  }
+
+  // Draw machines for this room (if any)
+  drawMachinesInRoom(rx, ry, sx, sy, offsetX, offsetY);
+}
+
+// ============ MACHINE RENDERING ============
+function drawMachinesInRoom(rx, ry, roomSX, roomSY, offsetX, offsetY) {
+  const rk = rkey(rx, ry);
+  const machines = machineData[rk];
+  if (!machines) return;
+
+  for (const mach of machines) {
+    const mx = roomSX + mach.tx * TILE;
+    const my = roomSY + mach.ty * TILE;
+    const sx2 = mx - offsetX;
+    const sy2 = my - offsetY;
+
+    if (sx2 < -TILE * 4 || sx2 > INTERNAL_W + TILE * 4 || sy2 < -TILE * 4 || sy2 > INTERNAL_H + TILE * 4) continue;
+
+    const mw = mach.w * TILE;
+    const mh = mach.h * TILE;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(Math.floor(sx2 + 2), Math.floor(sy2 + 2), mw, mh);
+
+    // Machine body — dark metal
+    ctx.fillStyle = C_MACHINE;
+    ctx.fillRect(Math.floor(sx2), Math.floor(sy2), mw, mh);
+
+    // Top face (slightly lighter for 3D effect)
+    ctx.fillStyle = '#4a4a4a';
+    ctx.fillRect(Math.floor(sx2), Math.floor(sy2), mw, Math.max(2, mh * 0.25));
+
+    // Ventilation grille
+    ctx.fillStyle = '#2a2a2a';
+    for (let gx = 2; gx < mw - 2; gx += 3) {
+      ctx.fillRect(Math.floor(sx2 + gx), Math.floor(sy2 + 3), 1.5, mh - 6);
+    }
+
+    // Indicator light (small glowing dot)
+    const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.05 + hash(rx, ry));
+    ctx.fillStyle = `rgba(255,100,30,${0.5 + pulse * 0.4})`;
+    ctx.fillRect(Math.floor(sx2 + mw - 3), Math.floor(sy2 + 2), 2, 2);
+
+    // Second indicator (green, steady)
+    ctx.fillStyle = 'rgba(50,255,80,0.6)';
+    ctx.fillRect(Math.floor(sx2 + mw - 3), Math.floor(sy2 + 5), 2, 2);
+
+    // Wire conduit on top
+    ctx.fillStyle = C_WIRE;
+    ctx.fillRect(Math.floor(sx2 + 2), Math.floor(sy2 - 1), mw - 4, 2);
+  }
+}
+
 // ============ CAR RENDERING ============
 function drawCarsInRoom(rx, ry, roomSX, roomSY, offsetX, offsetY) {
   const rk = rkey(rx, ry);
@@ -348,6 +590,8 @@ function drawFloorPattern(rx, ry, offsetX, offsetY) {
     drawBackroomsRoom(rx, ry, offsetX, offsetY);
   } else if (currentLevel === 2) {
     drawParkingRoom(rx, ry, offsetX, offsetY);
+  } else if (currentLevel === 3) {
+    drawElectricalRoom(rx, ry, offsetX, offsetY);
   }
 }
 
@@ -358,12 +602,16 @@ function drawLighting(offsetX, offsetY) {
   const py = p.y - offsetY;
   const lightRadius = TILE * VISION_RADIUS;
 
-  // Level 2 lighting: fog overlay + optional flashlight cone window
-  if (currentLevel === 2) {
+  // Level 2/3 lighting: fog overlay + optional flashlight cone window
+  if (currentLevel === 2 || currentLevel === 3) {
+    const isL3 = currentLevel === 3;
+    const fogR = isL3 ? 18 : 0;
+    const fogG = isL3 ? 12 : 0;
+    const fogB = isL3 ? 8 : 0;
     const fogRadius = lightRadius * 0.75;
     const fogGrad = ctx.createRadialGradient(px, py, 0, px, py, fogRadius);
-    fogGrad.addColorStop(0, 'rgba(0,0,0,0.85)');
-    fogGrad.addColorStop(1, 'rgba(0,0,0,1)');
+    fogGrad.addColorStop(0, `rgba(${fogR},${fogG},${fogB},0.85)`);
+    fogGrad.addColorStop(1, `rgba(${fogR},${fogG},${fogB},1)`);
 
     // Per-pixel spotlight: pixel-perfect cone with angle+distance falloff
     if (player && player.hasFlashlight) {
@@ -381,8 +629,8 @@ function drawLighting(offsetX, offsetY) {
       offscreen.height = oh;
       const osc = offscreen.getContext('2d');
 
-      // Fill with solid black
-      osc.fillStyle = '#000';
+      // Fill with solid fog color (warm dark brown for L3, black for L2)
+      osc.fillStyle = isL3 ? 'rgb(18,12,8)' : '#000';
       osc.fillRect(0, 0, ow, oh);
 
       // Per-pixel lighting
@@ -452,7 +700,7 @@ function drawLighting(offsetX, offsetY) {
       ctx.drawImage(offscreen, 0, 0, INTERNAL_W, INTERNAL_H);
       ctx.restore();
     } else {
-      // Level 2 without flashlight: just draw fog
+      // Without flashlight: just draw radial fog
       ctx.fillStyle = fogGrad;
       ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
     }
@@ -479,7 +727,7 @@ function drawLighting(offsetX, offsetY) {
       const roomWX = rx * ROOM_PX - offsetX;
       const roomWY = ry * ROOM_PX - offsetY;
 
-      let alpha = currentLevel === 2 ? 0.02 : 0.08;
+      let alpha = currentLevel === 2 ? 0.02 : currentLevel === 3 ? 0.03 : 0.08;
       if (rtype === 'flicker') {
         const flicker = Math.sin(frameCount * 0.3 + hash(rx, ry)) * 0.5 + 0.5;
         const spike = Math.sin(frameCount * 1.7 + hash(rx + 50, ry)) > 0.85 ? 0 : 1;
@@ -505,6 +753,8 @@ function drawLighting(offsetX, offsetY) {
       const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.03);
       const glowColor = currentLevel === 2
         ? `rgba(130,200,255,${0.06 + pulse * 0.04})`
+        : currentLevel === 3
+        ? `rgba(140,210,255,${0.07 + pulse * 0.04})`
         : `rgba(150,200,240,${0.06 + pulse * 0.04})`;
       ctx.fillStyle = glowColor;
       ctx.fillRect(Math.floor(exitWX), Math.floor(exitWY), ROOM_PX, ROOM_PX);
@@ -566,6 +816,52 @@ function drawEntity(offsetX, offsetY) {
     if (!e.visible && dist(e, player) < TILE * 7) {
       ctx.fillStyle = 'rgba(200,200,200,0.08)';
       ctx.fillRect(sx - 7, sy - 16, 14, 22);
+    }
+  } else if (currentLevel === 3) {
+    // Level 3: "Wretch" — tall emaciated figure, ashy skin, glowing yellow eyes
+    const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.07);
+
+    // Body — tall, very thin, ashy gray
+    ctx.fillStyle = '#8a8a80';
+    ctx.fillRect(sx - 2, sy - 14, 4, 18);
+
+    // Arms — long, thin, hanging
+    ctx.fillStyle = '#7a7a70';
+    ctx.fillRect(sx - 5, sy - 10, 2, 10);
+    ctx.fillRect(sx + 3, sy - 10, 2, 10);
+
+    // Head — narrow, elongated
+    ctx.fillStyle = '#9a9a90';
+    ctx.fillRect(sx - 2, sy - 17, 4, 6);
+
+    // Rib cage — visible through skin, darker lines
+    ctx.fillStyle = '#6a6a60';
+    for (let rib = 0; rib < 3; rib++) {
+      ctx.fillRect(sx - 2, sy - 8 + rib * 3, 4, 1);
+    }
+
+    // Glowing yellow eyes
+    ctx.fillStyle = `rgba(255,200,40,${0.7 + pulse * 0.3})`;
+    ctx.fillRect(sx - 1, sy - 15, 1, 1);
+    ctx.fillRect(sx + 1, sy - 15, 1, 1);
+
+    // Eye glow aura
+    ctx.fillStyle = `rgba(255,180,20,${0.12 + pulse * 0.08})`;
+    ctx.fillRect(sx - 3, sy - 16, 6, 4);
+
+    // Electrical spark effect (occasional)
+    if (Math.sin(frameCount * 0.5 + hash(Math.floor(e.x), Math.floor(e.y))) > 0.7) {
+      ctx.fillStyle = `rgba(255,220,100,${0.3 + pulse * 0.3})`;
+      const sparkX = sx + (Math.sin(frameCount * 3) * 3);
+      const sparkY = sy - 12 + (Math.cos(frameCount * 4) * 4);
+      ctx.fillRect(Math.floor(sparkX), Math.floor(sparkY), 2, 2);
+      ctx.fillRect(Math.floor(sparkX + 2), Math.floor(sparkY + 1), 1, 1);
+    }
+
+    // Shadow aura when not visible
+    if (!e.visible && dist(e, player) < TILE * 7) {
+      ctx.fillStyle = 'rgba(200,180,100,0.06)';
+      ctx.fillRect(sx - 8, sy - 18, 16, 24);
     }
   } else {
     // Level 1: dark shadow figure with red eyes
@@ -640,7 +936,7 @@ function drawHUD() {
   const { rx, ry } = worldToRoom(player.x, player.y);
   const rtype = roomTypes[rkey(rx, ry)] || 'normal';
   if (rtype === 'exit') {
-    hint.textContent = currentLevel === 2 ? '你看到了电梯的灯光...' : '你感受到了出口的气息...';
+    hint.textContent = currentLevel === 2 ? '你看到了电梯的灯光...' : currentLevel === 3 ? '你听到了发电机的声音...' : '你感受到了出口的气息...';
     hint.style.color = '#aad';
   } else if (entity && dist(player, entity) < TILE * 6) {
     hint.textContent = '有什么东西在附近...';
@@ -648,11 +944,19 @@ function drawHUD() {
   } else if (rtype === 'dark') {
     hint.textContent = '这里太暗了...';
     hint.style.color = '#666';
+  } else if (rtype === 'machine') {
+    hint.textContent = '机器的热量令人窒息...';
+    hint.style.color = '#d35400';
   } else {
     const itemHere = roomItems[rkey(rx, ry)];
     if (itemHere && !itemHere.picked) {
-      hint.textContent = '地上有一瓶杏仁水';
-      hint.style.color = '#7ec8f8';
+      if (itemHere.type === 'flashlight') {
+        hint.textContent = '地上有一个手电筒';
+        hint.style.color = '#ffd700';
+      } else {
+        hint.textContent = '地上有一瓶杏仁水';
+        hint.style.color = '#7ec8f8';
+      }
     } else {
       hint.textContent = '';
     }

@@ -67,6 +67,51 @@ function createHum() {
   audioNodes.hum = { osc, gain, lfo, lfoGain };
 }
 
+function createElectricalHum() {
+  if (!audioCtx) return;
+  stopAudioNode('electricalHum');
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
+
+  // Buzzy sawtooth base for industrial feel
+  osc.type = 'sawtooth';
+  osc.frequency.value = 90;
+
+  // Slow LFO modulation for electrical "wobble"
+  const lfo = audioCtx.createOscillator();
+  const lfoGain = audioCtx.createGain();
+  lfo.frequency.value = 0.25;
+  lfoGain.gain.value = 2;
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc.frequency);
+
+  // Second LFO for subtle crackle rhythm
+  const lfo2 = audioCtx.createOscillator();
+  const lfo2Gain = audioCtx.createGain();
+  lfo2.type = 'square';
+  lfo2.frequency.value = 3.7;
+  lfo2Gain.gain.value = 0.015;
+  lfo2.connect(lfo2Gain);
+  lfo2Gain.connect(gain.gain);
+
+  // Lowpass to keep it rumbling, not piercing
+  filter.type = 'lowpass';
+  filter.frequency.value = 350;
+  filter.Q.value = 2;
+
+  gain.gain.value = 0.05;
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+
+  osc.start();
+  lfo.start();
+  lfo2.start();
+  audioNodes.electricalHum = { osc, gain, filter, lfo, lfoGain, lfo2, lfo2Gain };
+}
+
 function playFootstep() {
   if (!audioCtx) return;
   const osc = audioCtx.createOscillator();

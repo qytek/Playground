@@ -85,6 +85,11 @@ function updatePlayer(dt) {
     p.sanity = Math.max(0, p.sanity - 5 * dt);
   }
 
+  // Sanity drain in machine rooms (heat)
+  if (rtype === 'machine') {
+    p.sanity = Math.max(0, p.sanity - 3 * dt);
+  }
+
   // Sanity drain when entity is very close
   if (entity) {
     const edist = dist(p, entity);

@@ -16,6 +16,9 @@ function onExitReached() {
     // Transition to level 2
     transitionToLevel(2);
   } else if (currentLevel === 2) {
+    // Transition to level 3
+    transitionToLevel(3);
+  } else if (currentLevel === 3) {
     // Win the game!
     endGame('win');
   }
@@ -25,6 +28,7 @@ function transitionToLevel(level) {
   gameState = 'levelComplete';
   stopAudioNode('drone');
   stopAudioNode('hum');
+  stopAudioNode('electricalHum');
 
   if (level === 2) {
     playExitSound();
@@ -64,6 +68,45 @@ function transitionToLevel(level) {
     createHum();
 
     showMessage('你穿过出口，来到了一个陌生的停车场...', 4);
+
+  } else if (level === 3) {
+    playExitSound();
+    applyLevelConfig(LEVEL3);
+    currentLevel = 3;
+    generateRoomTiles = generateElectricalRoomTiles;
+    mazeData = generateMaze('electrical');
+    placeMachinesInStation();
+    console.log('[level-manager] Level 3 ready. roomItems:', Object.keys(roomItems).length);
+
+    // Place player at start room
+    const startWX = mazeData.startRx * ROOM_PX + ROOM_PX / 2;
+    const startWY = mazeData.startRy * ROOM_PX + ROOM_PX / 2;
+    player = createPlayer(startWX, startWY);
+    player.hasFlashlight = true; // keep flashlight from L2
+
+    // Place entity away from start
+    let midRx = Math.floor((mazeData.startRx + mazeData.exitRx) / 2) + 1;
+    let midRy = Math.floor((mazeData.startRy + mazeData.exitRy) / 2);
+    if (midRx === mazeData.startRx && midRy === mazeData.startRy) {
+      midRx += (mazeData.exitRx > mazeData.startRx ? 1 : -1);
+    }
+    const entityWX = midRx * ROOM_PX + ROOM_PX / 2;
+    const entityWY = midRy * ROOM_PX + ROOM_PX / 2;
+    entity = createEntity(entityWX, entityWY);
+
+    gameState = 'playing';
+    frameCount = 0;
+    screenShake = 0;
+    messageTimer = 0;
+
+    document.body.classList.add('playing');
+    document.getElementById('title-overlay').style.display = 'none';
+    document.getElementById('message-center').classList.remove('visible');
+
+    createDrone();
+    createElectricalHum();
+
+    showMessage('电梯门打开，你走进了一个炽热的发电站...', 4);
   }
 }
 
@@ -105,6 +148,7 @@ function endGame(reason) {
   gameState = reason;
   stopAudioNode('drone');
   stopAudioNode('hum');
+  stopAudioNode('electricalHum');
   document.body.classList.remove('playing');
 
   const overlay = document.getElementById('title-overlay');
@@ -137,6 +181,7 @@ function endGame(reason) {
     overlay.querySelector('.hint').textContent = 'WASD 移动 · SHIFT 奔跑 · 寻找出口';
     stopAudioNode('drone');
     stopAudioNode('hum');
+    stopAudioNode('electricalHum');
     startGame();
   };
 }

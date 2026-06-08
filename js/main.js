@@ -35,6 +35,8 @@ function update(dt) {
     if (currentLevel === 1) {
       onExitReached();
     } else if (currentLevel === 2) {
+      onExitReached();
+    } else if (currentLevel === 3) {
       endGame('win');
     }
     return;

@@ -32,6 +32,16 @@ const LEVEL2 = {
   DOOR_WIDTH: 5,
 };
 
+// Level 3 config (Electrical Station)
+const LEVEL3 = {
+  TILE: 16,
+  ROOM_TILES: 13,
+  get ROOM_PX() { return this.ROOM_TILES * this.TILE; },
+  MAP_ROOMS: 9,
+  VISION_RADIUS: 7,
+  DOOR_WIDTH: 3,
+};
+
 function applyLevelConfig(cfg) {
   TILE = cfg.TILE;
   ROOM_TILES = cfg.ROOM_TILES;
