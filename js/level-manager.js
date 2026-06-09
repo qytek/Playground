@@ -19,6 +19,9 @@ function onExitReached() {
     // Transition to level 3
     transitionToLevel(3);
   } else if (currentLevel === 3) {
+    // Transition to level 4
+    transitionToLevel(4);
+  } else if (currentLevel === 4) {
     // Win the game!
     endGame('win');
   }
@@ -107,6 +110,47 @@ function transitionToLevel(level) {
     createElectricalHum();
 
     showMessage('电梯门打开，你走进了一个炽热的发电站...', 4);
+
+  } else if (level === 4) {
+    playExitSound();
+    applyLevelConfig(LEVEL4);
+    currentLevel = 4;
+    generateRoomTiles = generateOfficeRoomTiles;
+    mazeData = generateMaze('office');
+    placeOfficeFurniture();
+    console.log('[level-manager] Level 4 ready. roomItems:', Object.keys(roomItems).length);
+
+    // Place player at start room
+    const startWX = mazeData.startRx * ROOM_PX + ROOM_PX / 2;
+    const startWY = mazeData.startRy * ROOM_PX + ROOM_PX / 2;
+    player = createPlayer(startWX, startWY);
+    player.hasFlashlight = false; // well-lit office, no flashlight needed
+
+    // Place entity away from start
+    let midRx = Math.floor((mazeData.startRx + mazeData.exitRx) / 2) + 1;
+    let midRy = Math.floor((mazeData.startRy + mazeData.exitRy) / 2);
+    if (midRx === mazeData.startRx && midRy === mazeData.startRy) {
+      midRx += (mazeData.exitRx > mazeData.startRx ? 1 : -1);
+    }
+    const entityWX = midRx * ROOM_PX + ROOM_PX / 2;
+    const entityWY = midRy * ROOM_PX + ROOM_PX / 2;
+    entity = createEntity(entityWX, entityWY);
+    // Duller moves slower, harder to detect
+    entity.speed = 0.45;
+
+    gameState = 'playing';
+    frameCount = 0;
+    screenShake = 0;
+    messageTimer = 0;
+
+    document.body.classList.add('playing');
+    document.getElementById('title-overlay').style.display = 'none';
+    document.getElementById('message-center').classList.remove('visible');
+
+    createDrone();
+    createHum();
+
+    showMessage('电梯门打开，你走进了一间空旷的办公室...', 4);
   }
 }
 

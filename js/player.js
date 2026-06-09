@@ -90,6 +90,11 @@ function updatePlayer(dt) {
     p.sanity = Math.max(0, p.sanity - 3 * dt);
   }
 
+  // Sanity drain near windows (unsettling view)
+  if (rtype === 'window') {
+    p.sanity = Math.max(0, p.sanity - 1.5 * dt);
+  }
+
   // Sanity drain when entity is very close
   if (entity) {
     const edist = dist(p, entity);

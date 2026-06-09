@@ -32,6 +32,16 @@ const LEVEL2 = {
   DOOR_WIDTH: 5,
 };
 
+// Level 4 config (Abandoned Office)
+const LEVEL4 = {
+  TILE: 16,
+  ROOM_TILES: 15,
+  get ROOM_PX() { return this.ROOM_TILES * this.TILE; },
+  MAP_ROOMS: 7,
+  VISION_RADIUS: 8,
+  DOOR_WIDTH: 3,
+};
+
 // Level 3 config (Electrical Station)
 const LEVEL3 = {
   TILE: 16,

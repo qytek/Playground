@@ -3,7 +3,15 @@
     "allow": [
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(dir \"Y:\\\\Dev\\\\Playground\" /b /s)",
+      "Bash(node --check \"Y:/Dev/Playground/js/level-manager.js\")",
+      "Bash(node --check \"Y:/Dev/Playground/js/player.js\")",
+      "Bash(Get-ChildItem *)",
+      "Bash(git commit *)",
+      "Bash(Measure-Object -Line)",
+      "Bash(node *)",
+      "Bash(git revert *)"
     ]
   }
 }

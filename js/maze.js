@@ -7,13 +7,16 @@ const roomItems = {};   // key: "rx,ry" -> { type: 'almond_water', picked: bool 
 
 // ============ GENERIC MAZE GENERATION ============
 // Uses the current global MAP_ROOMS value
-// levelType: 'backrooms' | 'parking' | 'electrical'
+// levelType: 'backrooms' | 'parking' | 'electrical' | 'office'
 function generateMaze(levelType) {
-  // Clear
+  // Clear all level data (including stale obstacle data from previous levels)
   for (const k in roomGraph) delete roomGraph[k];
   for (const k in roomTypes) delete roomTypes[k];
   for (const k in visitedRooms) delete visitedRooms[k];
   for (const k in roomItems) delete roomItems[k];
+  for (const k in carData) delete carData[k];
+  for (const k in machineData) delete machineData[k];
+  for (const k in furnitureData) delete furnitureData[k];
 
   // Initialize all cells with all walls
   for (let x = 0; x < MAP_ROOMS; x++) {
@@ -83,6 +86,13 @@ function generateMaze(levelType) {
         else if (r < 0.30) roomTypes[rkey(x,y)] = 'flicker';
         else if (r < 0.42) roomTypes[rkey(x,y)] = 'machine';
         else roomTypes[rkey(x,y)] = 'normal';
+      } else if (levelType === 'office') {
+        // Abandoned office: mostly safe, a few window rooms, rare dark rooms
+        if (r < 0.05) roomTypes[rkey(x,y)] = 'dark';
+        else if (r < 0.20) roomTypes[rkey(x,y)] = 'window';
+        else if (r < 0.40) roomTypes[rkey(x,y)] = 'cubicle';
+        else if (r < 0.48) roomTypes[rkey(x,y)] = 'breakroom';
+        else roomTypes[rkey(x,y)] = 'normal';
       } else {
         if (r < 0.12) roomTypes[rkey(x,y)] = 'dark';
         else if (r < 0.20) roomTypes[rkey(x,y)] = 'flicker';
@@ -104,6 +114,10 @@ function generateMaze(levelType) {
     // Exit: far side from start (electrical station)
     exitRx = startRx < MAP_ROOMS / 2 ? MAP_ROOMS - 2 : 1;
     exitRy = startRy < MAP_ROOMS / 2 ? MAP_ROOMS - 2 : 1;
+  } else if (levelType === 'office') {
+    // Exit: opposite corner from start (office)
+    exitRx = startRx < MAP_ROOMS / 2 ? MAP_ROOMS - 2 : 1;
+    exitRy = startRy < MAP_ROOMS / 2 ? MAP_ROOMS - 2 : 1;
   } else {
     // Exit room: random 5-12 rooms horizontally left or right of start
     const dir = rng(startRx, startRy) < 0.5 ? -1 : 1;
@@ -113,13 +127,14 @@ function generateMaze(levelType) {
   }
   roomTypes[rkey(exitRx, exitRy)] = 'exit';
 
-  // Place almond water in both levels
+  // Place almond water — higher rate in office (water coolers)
+  let almondRate = levelType === 'office' ? 0.30 : 0.20;
   let almondCount = 0;
   for (let x = 0; x < MAP_ROOMS; x++) {
     for (let y = 0; y < MAP_ROOMS; y++) {
       const rk = rkey(x, y);
       if (roomTypes[rk] === 'start' || roomTypes[rk] === 'exit') continue;
-      if (rng(x + 300, y + 300) < 0.20) {
+      if (rng(x + 300, y + 300) < almondRate) {
         roomItems[rk] = { type: 'almond_water', picked: false };
         almondCount++;
       }
@@ -127,8 +142,8 @@ function generateMaze(levelType) {
   }
   console.log('[maze.js] Level:', levelType, 'MAP_ROOMS:', MAP_ROOMS, 'almond waters placed:', almondCount);
 
-  // Flashlight placement (parking garage and electrical station)
-  if (levelType === 'parking' || levelType === 'electrical') {
+  // Flashlight placement (parking, electrical, office)
+  if (levelType === 'parking' || levelType === 'electrical' || levelType === 'office') {
     // Pick a random room between start and exit (not in start or exit rooms)
     const midX = Math.floor((startRx + exitRx) / 2);
     const midY = Math.floor((startRy + exitRy) / 2);

@@ -67,6 +67,19 @@ function isSolid(wx, wy) {
     }
   }
 
+  // Check furniture collision (Level 4 abandoned office)
+  const furniture = furnitureData[rkey(rx, ry)];
+  if (furniture) {
+    for (const furn of furniture) {
+      if (tx >= furn.tx && tx < furn.tx + furn.w && ty >= furn.ty && ty < furn.ty + furn.h) {
+        return true;
+      }
+    }
+  }
+
+  // Check cubicle partition collision (tile 5 in Level 4)
+  if (currentLevel === 4 && t === 5) return true;
+
   return false;
 }
 

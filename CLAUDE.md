@@ -1,6 +1,6 @@
 # Backrooms -- Pixel Horror Game
 
-2D pixel-art Backrooms-style horror game. Explore procedurally generated mazes, avoid the entity, find the exit. Three levels: classic Backrooms (mono-yellow wallpaper), Parking Garage, and Electrical Station.
+2D pixel-art Backrooms-style horror game. Explore procedurally generated mazes, avoid the entity, find the exit. Four levels: classic Backrooms (mono-yellow wallpaper), Parking Garage, Electrical Station, and Abandoned Office.
 
 ## Tech Stack
 
@@ -13,23 +13,24 @@
 
 | File | Role |
 |------|------|
-| `js/config.js` | Constants, internal resolution, level configs (LEVEL1/LEVEL2/LEVEL3), `applyLevelConfig()` |
+| `js/config.js` | Constants, internal resolution, level configs (LEVEL1–LEVEL4), `applyLevelConfig()` |
 | `js/utils.js` | Shared helpers: `hash`, `rng`, `dist`, `lerp`, `clamp`, `rkey`, `worldToRoom`, `roomToWorld`, `getTile`, `isSolid`, `shuffle` |
 | `js/input.js` | Keyboard + touch input, populates global `keys` object |
-| `js/audio.js` | Web Audio API manager: drone, hum, electricalHum, footsteps, heartbeat, entity growls |
-| `js/maze.js` | Procedural maze via recursive backtracker on `MAP_ROOMS x MAP_ROOMS` grid. Manages `roomGraph`, `roomTypes`, `visitedRooms`, `roomItems` |
+| `js/audio.js` | Web Audio API manager: drone, hum, electricalHum (L3), footsteps, heartbeat, entity growls |
+| `js/maze.js` | Procedural maze via recursive backtracker on `MAP_ROOMS x MAP_ROOMS` grid. Manages `roomGraph`, `roomTypes`, `visitedRooms`, `roomItems`. Clears stale `carData`/`machineData`/`furnitureData` between levels |
 | `js/player.js` | `createPlayer()`, `updatePlayer()` -- movement, AABB collision, sanity/stamina, auto-pickup almond water/flashlight, exit/entity collision |
 | `js/entity.js` | Entity AI: BFS pathfinding through `roomGraph`, line-of-sight checks, speed modulation when observed |
-| `js/renderer.js` | Canvas rendering: tile-based rooms, three level renderers (Backrooms + Parking + Electrical), cars, machines, fog-of-war lighting, player/entity sprites, HUD, screen shake, VHS scanlines, chromatic aberration |
+| `js/renderer.js` | Canvas rendering: tile-based rooms, four level renderers (Backrooms + Parking + Electrical + Office), cars, machines, furniture, fog-of-war lighting, player/entity sprites, HUD, screen shake, VHS scanlines, chromatic aberration, debug overlay (Y key) |
 | `js/level1.js` | Backrooms room template generator (`generateBackroomsRoomTiles`): walls, doorways, floor, exit tiles, almond water items |
 | `js/level2.js` | Parking Garage room template generator (`generateParkingRoomTiles`): concrete walls, wide doorways, fluorescent lights, elevator exit, parking lines, car placement |
 | `js/level3.js` | Electrical Station room template generator (`generateElectricalRoomTiles`): brick walls, pipes, fluorescent lights, elevator exit, electrical machines. `machineData` and `placeMachinesInStation()` for machine obstacles |
+| `js/level4.js` | Abandoned Office room template generator (`generateOfficeRoomTiles`): white walls, gray carpet, cubicle partitions, ceiling lights, elevator exit, windows. `furnitureData` and `placeOfficeFurniture()` for desks/cabinets |
 | `js/level-manager.js` | Global state (`gameState`, `player`, `entity`, `currentLevel`), `startGame()`, `transitionToLevel()`, `endGame()` |
 | `js/main.js` | Canvas setup, resize handler, game loop (`requestAnimationFrame` with dt cap), initialization |
 | `index.html` | Entry point, UI markup (title screen, HUD, touch controls), script load order |
 | `css/style.css` | Styling for UI overlay, touch controls, HUD bars |
 
-**Load order is significant** (no module system): `config.js` -> `utils.js` -> `input.js` -> `audio.js` -> `maze.js` -> `player.js` -> `entity.js` -> `renderer.js` -> `level1.js` -> `level2.js` -> `level3.js` -> `level-manager.js` -> `main.js`
+**Load order is significant** (no module system): `config.js` -> `utils.js` -> `input.js` -> `audio.js` -> `maze.js` -> `player.js` -> `entity.js` -> `renderer.js` -> `level1.js` -> `level2.js` -> `level3.js` -> `level4.js` -> `level-manager.js` -> `main.js`
 
 ## Architecture
 
@@ -38,16 +39,16 @@
 **Global state:** All modules communicate through globals:
 - `gameState`: `'title'` | `'playing'` | `'win'` | `'dead'` | `'levelComplete'`
 - `player`, `entity` -- plain objects from `createPlayer()` / `createEntity()`
-- `currentLevel`: `1`, `2`, or `3`
+- `currentLevel`: `1`, `2`, `3`, or `4`
 - `keys` -- keyboard state map populated by `input.js`
 - Tile/size globals: `TILE`, `ROOM_TILES`, `ROOM_PX`, `MAP_ROOMS`, `VISION_RADIUS` -- reassigned per level by `applyLevelConfig()`
-- `generateRoomTiles` -- function pointer swapped per level (`generateBackroomsRoomTiles` or `generateParkingRoomTiles`)
+- `generateRoomTiles` -- function pointer swapped per level (`generateBackroomsRoomTiles`, `generateParkingRoomTiles`, `generateElectricalRoomTiles`, `generateOfficeRoomTiles`)
 
 **Level system:** `transitionToLevel()` calls `applyLevelConfig()` to swap tile/size globals, reassigns `generateRoomTiles`, runs `generateMaze()` to rebuild the world, places player/entity at new positions.
 
 **Renderer:** Single canvas at 480x320 internal resolution. Camera follows player. Rooms drawn sorted by Y for depth. Fog of war via radial gradient centered on player. Room lights applied as ambient overlays. Low-sanity effects: red vignette, chromatic aberration.
 
-**Tile convention:** `1` = wall, `2` = doorway, `3` = light/ceiling, `4` = exit, `5` = item/line/pipe, `6` = car (L2) / machine (L3), `7` = flashlight, `8` = almond water, `0`/other = floor
+**Tile convention:** `1` = wall, `2` = doorway, `3` = light/ceiling, `4` = exit, `5` = item/line/pipe (L1–L3) / cubicle partition (L4, solid), `6` = car (L2) / machine (L3) / furniture cell (L4), `7` = flashlight, `8` = almond water, `9` = window (L4), `0`/other = floor
 
 ## How to Run
 
@@ -55,19 +56,21 @@ Open `index.html` directly in a browser. No build step, no dev server required. 
 
 ## Key Systems
 
-**Maze generation (`js/maze.js`):** Recursive backtracker on a grid of rooms. Each room has 4 possible door directions. Special room types: `start`, `exit`, `dark`, `flicker`, `car` (L2), `machine` (L3). Room tiles generated on first visit and cached in `visitedRooms`.
+**Maze generation (`js/maze.js`):** Recursive backtracker on a grid of rooms. Each room has 4 possible door directions. Special room types: `start`, `exit`, `dark`, `flicker`, `car` (L2), `machine` (L3), `cubicle`/`window`/`breakroom` (L4). Room tiles generated on first visit and cached in `visitedRooms`. On maze generation, all stale obstacle data (`carData`, `machineData`, `furnitureData`) is cleared to prevent cross-level contamination.
 
-**Player (`js/player.js`):** Free-form pixel movement with AABB collision against wall tiles and cars. Sanity drains in dark rooms and near the entity. Stamina depletes while sprinting, regenerates while idle. Auto-picks up almond water on contact (+30 sanity). Die on entity contact or sanity reaching 0.
+**Player (`js/player.js`):** Free-form pixel movement with AABB collision against wall tiles, cars, machines, furniture, and cubicle partitions. Sanity drains in dark rooms (-5/s), machine rooms (-3/s heat), window rooms (-1.5/s unsettling view), and near the entity. Stamina depletes while sprinting, regenerates while idle. Auto-picks up almond water (+30 sanity) and flashlight. Die on entity contact or sanity reaching 0.
 
 **Entity AI (`js/entity.js`):** BFS pathfinding through `roomGraph` to player's room. Moves slowly when player has line-of-sight, full speed otherwise. Emits growl sounds when close. Heartbeat audio and screen shake at close range.
 
 **Audio (`js/audio.js`):** Web Audio API with `AudioContext`. Procedural noise for ambient drone, fluorescent hum, and electrical hum (L3). One-shot samples for footsteps (pitch-randomized), heartbeat, entity growls, death, exit jingle.
 
-**Fog of war (`js/renderer.js`):** `drawLighting()` per-level lighting. Level 1 uses a radial gradient mask centered on the player. Level 2 uses a per-pixel software shader (ImageData) with a GLSL-style spotlight formula: smoothstep angular falloff between inner (22.5 degrees) and outer (36 degrees) cone, plus distance falloff `(1-d)^1.5`. Level 3 uses the same spotlight approach with a warm brown fog tint (rgb(18,12,8)) for the hot electrical station atmosphere. Spotlight built on an offscreen canvas at half resolution, upscaled smoothly. Player starts Level 2/3 with `hasFlashlight = true`. Without flashlight, uses a tight radial fog circle.
+**Fog of war (`js/renderer.js`):** `drawLighting()` per-level lighting. Level 1 uses a radial gradient mask centered on the player. Level 2 uses a per-pixel software shader (ImageData) with a GLSL-style spotlight formula: smoothstep angular falloff between inner (22.5°) and outer (36°) cone, plus distance falloff `(1-d)^1.5`. Level 3 uses the same spotlight with a warm brown fog tint (rgb(18,12,8)). Level 4 has **no fog** — fully bright office. Spotlight built on an offscreen canvas at half resolution, upscaled smoothly. Player starts Level 2/3 with `hasFlashlight = true`; Level 4 starts without one.
 
-**Items:** Almond water (tile 5 L1, tile 8 L2/L3) restores +30 sanity. Flashlight (tile 7, L2/L3) auto-picked up but also given by default on level entry. Items placed at `tiles[2][2]` (top-left corner, safe from obstacle hitboxes). Pickup uses `getTile()` for tile-precise detection.
+**Items:** Almond water (tile 5 L1, tile 8 L2–L4) restores +30 sanity. Flashlight (tile 7, L2–L4) found on ground or given by default. L4 has higher almond water spawn rate (30% vs 20%). Items placed at `tiles[2][2]` (top-left corner, safe from obstacle hitboxes). Pickup uses `getTile()` for tile-precise detection.
 
-**Level 3 — Electrical Station:** Brick-walled corridors with pipes, electrical machines, and flickering fluorescent lights. 13×13 tile rooms on a 9×9 room grid. Room types: `normal`, `dark` (power outage, 18%), `flicker` (12%), `machine` (12% — filled with 1–2 transformer obstacles, mild heat sanity drain -3/s). Machines are 2×2 or 3×3 solid obstacles (`machineData`, similar to `carData`). Warm brown fog tint. Entity: "Wretch" — tall emaciated ashy figure with glowing yellow eyes and electrical spark effects. Audio: `createElectricalHum()` — sawtooth-based industrial buzz with slow wobble LFO and subtle crackle rhythm. Exit: industrial elevator (3×3). Hints: machine rooms show "机器的热量令人窒息...", exit rooms show "你听到了发电机的声音...".
+**Level 3 — Electrical Station:** Brick-walled corridors with pipes, electrical machines, and flickering fluorescent lights. 13×13 tile rooms on a 9×9 room grid. Room types: `normal`, `dark` (power outage, 18%), `flicker` (12%), `machine` (12% — filled with 1–2 transformer obstacles, heat sanity drain -3/s). Warm brown fog tint (rgb(18,12,8)). Entity: "Wretch" — tall emaciated ashy figure with glowing yellow eyes and electrical spark effects. Audio: `createElectricalHum()` — sawtooth industrial buzz with wobble LFO. Exit: industrial elevator (3×3).
+
+**Level 4 — Abandoned Office:** Bright modern office with white walls, gray carpet, cubicle partitions, desks, filing cabinets, and windows. 15×15 tile rooms on a 7×7 room grid. Room types: `normal` (52%), `cubicle` (20% — dense partitions), `window` (15% — windows on walls, sanity drain -1.5/s), `breakroom` (8% — fewer obstacles, higher item chance), `dark` (5%). Cubicle partitions (tile 5) are solid blue-gray walls. Office furniture (desks 3×1, cabinets 1×2) via `furnitureData`. No fog of war — fully bright. Entity: "Duller" — pale translucent office worker, hard to see (fades to 25% opacity when not in LOS), moves slower (speed 0.45). Exit: office elevator (3×3). Hints: window rooms show "窗外有什么东西在移动...", breakrooms show "这里有一个休息室...", exit rooms show "你看到了标有'EXIT'的门...".
 
 **Touch controls:** D-pad (4 directional buttons) + run button. Visible/hidden via CSS media queries. Maps to the same `keys` object as keyboard input.
 
@@ -84,6 +87,6 @@ Open `index.html` directly in a browser. No build step, no dev server required. 
 
 - Add a lightweight bundler (esbuild) for minification and ES module support
 - Optional TypeScript migration, one file at a time
-- New level ideas: Poolrooms (Level 4), Pipe Dreams
+- New level ideas: Poolrooms (Level 5), Pipe Dreams
 - Mobile layout polish
 - LocalStorage save system (player position, visited rooms, inventory)

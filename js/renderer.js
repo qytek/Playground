@@ -38,6 +38,25 @@ const C_ELECTRIC_DOORWAY = '#1a1a1a';
 const C_ELEVATOR_METAL = '#556';
 const C_ELEVATOR_GLOW_L3 = '#88ccff';
 
+// Abandoned office color palette
+const CO_CARPET = '#a0a0a0';
+const CO_CARPET_DARK = '#8a8a8a';
+const CO_CARPET_WET = '#808080';
+const CO_WALL = '#e8e8e8';
+const CO_WALL_DARK = '#d0d0d0';
+const CO_TRIM = '#555';
+const CO_DOORWAY = '#333';
+const CO_LIGHT = '#f0f4ff';
+const CO_CUBICLE = '#7b8fa0';
+const CO_CUBICLE_DARK = '#5d6f80';
+const CO_DESK = '#9b6b3c';
+const CO_DESK_TOP = '#c49464';
+const CO_CABINET = '#555';
+const CO_CABINET_DARK = '#444';
+const CO_WINDOW_FRAME = '#5a5a5a';
+const CO_WINDOW_GLASS = '#7799bb';
+const CO_WINDOW_GLOW = '#aaccee';
+
 // === SPRITE SHEET ===
 let spriteSheet = null;
 let spriteFW = 0, spriteFH = 0;
@@ -530,6 +549,242 @@ function drawMachinesInRoom(rx, ry, roomSX, roomSY, offsetX, offsetY) {
   }
 }
 
+// ============ ABANDONED OFFICE ROOM DRAWING ============
+function drawOfficeRoom(rx, ry, offsetX, offsetY) {
+  const sx = rx * ROOM_PX;
+  const sy = ry * ROOM_PX;
+  const tiles = generateRoomTiles(rx, ry);
+  const rtype = roomTypes[rkey(rx, ry)] || 'normal';
+
+  for (let ty = 0; ty < ROOM_TILES; ty++) {
+    for (let tx = 0; tx < ROOM_TILES; tx++) {
+      const wx = sx + tx * TILE;
+      const wy = sy + ty * TILE;
+      const sx2 = wx - offsetX;
+      const sy2 = wy - offsetY;
+
+      if (sx2 < -TILE || sx2 > INTERNAL_W + TILE || sy2 < -TILE || sy2 > INTERNAL_H + TILE) continue;
+
+      const tile = tiles[ty][tx];
+
+      if (tile === 1) {
+        // White office wall
+        const isEdge = (tx === 0 || tx === ROOM_TILES - 1 || ty === 0 || ty === ROOM_TILES - 1);
+        ctx.fillStyle = isEdge ? CO_WALL_DARK : CO_WALL;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        // Subtle wall panel lines
+        if ((tx + ty * 3) % 7 === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.04)';
+          ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, 1);
+        }
+
+        // Bottom trim
+        if (ty === ROOM_TILES - 1 || (ty > 0 && tiles[ty+1] && tiles[ty+1][tx] === 0)) {
+          ctx.fillStyle = CO_TRIM;
+          ctx.fillRect(Math.floor(sx2), Math.floor(sy2) + TILE - 3, TILE, 3);
+        }
+
+      } else if (tile === 2) {
+        // Dark doorway
+        ctx.fillStyle = CO_DOORWAY;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+      } else if (tile === 3) {
+        // Ceiling fluorescent light panel
+        ctx.fillStyle = CO_CARPET;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        const flicker = rtype === 'dark'
+          ? 0
+          : (Math.sin(frameCount * 0.25 + hash(rx, ry)) * 0.5 + 0.5) * (Math.sin(frameCount * 1.3 + hash(rx + 30, ry)) > 0.9 ? 0 : 1);
+
+        // Cool white glow
+        ctx.fillStyle = `rgba(240,244,255,${0.18 * flicker})`;
+        ctx.fillRect(Math.floor(sx2 + 1), Math.floor(sy2 + 1), TILE - 2, TILE - 2);
+
+        // Light tube
+        ctx.fillStyle = `rgba(255,255,255,${0.3 * flicker})`;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2 + TILE/2 - 1), TILE, 2);
+
+      } else if (tile === 4) {
+        // Elevator exit — office building style
+        ctx.fillStyle = CO_CARPET;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.04);
+        ctx.fillStyle = '#667';
+        ctx.fillRect(Math.floor(sx2 + 1), Math.floor(sy2), TILE/2 - 1, TILE);
+        ctx.fillStyle = '#778';
+        ctx.fillRect(Math.floor(sx2 + TILE/2 + 1), Math.floor(sy2), TILE/2 - 1, TILE);
+
+        // Door gap glow
+        ctx.fillStyle = `rgba(130,200,255,${0.4 + pulse * 0.3})`;
+        ctx.fillRect(Math.floor(sx2 + TILE/2 - 0.5), Math.floor(sy2), 1, TILE);
+
+        // Up arrow
+        ctx.fillStyle = `rgba(130,200,255,${0.6 + pulse * 0.3})`;
+        ctx.fillRect(Math.floor(sx2 + TILE/2 - 2), Math.floor(sy2 + 2), 4, 1);
+        ctx.fillRect(Math.floor(sx2 + TILE/2 - 1), Math.floor(sy2 + 1), 2, 2);
+
+        // Particles
+        for (let i = 0; i < 2; i++) {
+          const px = sx2 + TILE/2 + Math.sin(frameCount * 0.03 + i) * TILE;
+          const py = sy2 + TILE/2 + Math.cos(frameCount * 0.03 + i) * TILE;
+          ctx.fillStyle = `rgba(150,220,255,${0.3 + pulse * 0.2})`;
+          ctx.fillRect(Math.floor(px), Math.floor(py), 1, 1);
+        }
+
+      } else if (tile === 5) {
+        // Cubicle partition — low gray wall
+        ctx.fillStyle = CO_CUBICLE;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        // Darker top edge
+        ctx.fillStyle = CO_CUBICLE_DARK;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, 2);
+
+        // Fabric-like texture lines
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        if (ty % 2 === 0) ctx.fillRect(Math.floor(sx2), Math.floor(sy2 + 4), TILE, 1);
+
+      } else if (tile === 6) {
+        // Office furniture — drawn via furnitureData, floor fallback here
+        ctx.fillStyle = CO_CARPET;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+      } else if (tile === 7) {
+        // Flashlight item on carpet
+        ctx.fillStyle = CO_CARPET;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+        const fx = Math.floor(sx2 + TILE/2) - 2;
+        const fy = Math.floor(sy2 + TILE/2);
+        ctx.fillStyle = '#444';
+        ctx.fillRect(fx - 1, fy - 3, 7, 5);
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(fx + 6, fy - 2, 3, 3);
+        const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.04);
+        ctx.fillStyle = `rgba(255,215,0,${0.2 + pulse * 0.15})`;
+        ctx.fillRect(fx + 5, fy - 3, 5, 5);
+
+      } else if (tile === 8) {
+        // Almond water / water cooler on carpet
+        ctx.fillStyle = CO_CARPET;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+        if (almondBottleImg && almondBottleImg.complete && almondBottleImg.naturalWidth > 0) {
+          ctx.drawImage(almondBottleImg, Math.floor(sx2 + 3), Math.floor(sy2 + 1), 10, 12);
+        } else {
+          ctx.fillStyle = '#5599cc';
+          ctx.fillRect(Math.floor(sx2 + 4), Math.floor(sy2 + 2), 6, 9);
+          ctx.fillStyle = '#3377aa';
+          ctx.fillRect(Math.floor(sx2 + 5), Math.floor(sy2 + 3), 4, 2);
+        }
+        const pulse2 = 0.5 + 0.5 * Math.sin(frameCount * 0.04);
+        ctx.fillStyle = `rgba(150,200,240,${0.2 + pulse2 * 0.15})`;
+        ctx.fillRect(Math.floor(sx2 + 3), Math.floor(sy2 + 1), 10, 12);
+
+      } else if (tile === 9) {
+        // Window — dark glass with faint glow, unsettling
+        // Window frame
+        ctx.fillStyle = CO_WINDOW_FRAME;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        // Glass pane
+        ctx.fillStyle = CO_WINDOW_GLASS;
+        ctx.fillRect(Math.floor(sx2 + 2), Math.floor(sy2 + 2), TILE - 4, TILE - 4);
+
+        // Eerie faint glow from outside
+        const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.02 + hash(rx * 10 + tx, ry * 10 + ty));
+        ctx.fillStyle = `rgba(170,200,230,${0.08 + pulse * 0.06})`;
+        ctx.fillRect(Math.floor(sx2 + 2), Math.floor(sy2 + 2), TILE - 4, TILE - 4);
+
+        // Occasional shadow flicker (something moving outside?)
+        if (Math.sin(frameCount * 0.15 + hash(tx, ty)) > 0.85) {
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.fillRect(Math.floor(sx2 + 3), Math.floor(sy2 + 3), TILE - 6, TILE - 6);
+        }
+
+      } else {
+        // Gray carpet floor with subtle texture
+        const v = hash(rx * 100 + tx, ry * 100 + ty) % 100;
+        const shade = v < 10 ? CO_CARPET_DARK : v < 14 ? CO_CARPET_WET : CO_CARPET;
+        ctx.fillStyle = shade;
+        ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, TILE);
+
+        // Subtle carpet fiber pattern
+        if ((tx + ty * 2) % 5 === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.03)';
+          ctx.fillRect(Math.floor(sx2), Math.floor(sy2), TILE, 1);
+        }
+        if ((tx * 3 + ty) % 7 === 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.02)';
+          ctx.fillRect(Math.floor(sx2 + TILE/2), Math.floor(sy2), 1, TILE);
+        }
+      }
+    }
+  }
+
+  // Draw office furniture for this room (if any)
+  drawOfficeFurnitureInRoom(rx, ry, sx, sy, offsetX, offsetY);
+}
+
+// ============ OFFICE FURNITURE RENDERING ============
+function drawOfficeFurnitureInRoom(rx, ry, roomSX, roomSY, offsetX, offsetY) {
+  const rk = rkey(rx, ry);
+  const furniture = furnitureData[rk];
+  if (!furniture) return;
+
+  for (const furn of furniture) {
+    const fx = roomSX + furn.tx * TILE;
+    const fy = roomSY + furn.ty * TILE;
+    const sx2 = fx - offsetX;
+    const sy2 = fy - offsetY;
+
+    if (sx2 < -TILE * 4 || sx2 > INTERNAL_W + TILE * 4 || sy2 < -TILE * 4 || sy2 > INTERNAL_H + TILE * 4) continue;
+
+    const fw = furn.w * TILE;
+    const fh = furn.h * TILE;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(Math.floor(sx2 + 2), Math.floor(sy2 + 2), fw, fh);
+
+    if (furn.type === 'desk') {
+      // Desk body — wood tone
+      ctx.fillStyle = CO_DESK;
+      ctx.fillRect(Math.floor(sx2), Math.floor(sy2), fw, fh);
+
+      // Desktop surface (lighter)
+      ctx.fillStyle = CO_DESK_TOP;
+      ctx.fillRect(Math.floor(sx2), Math.floor(sy2), fw, Math.max(2, fh * 0.4));
+
+      // Desk legs
+      ctx.fillStyle = CO_DESK;
+      ctx.fillRect(Math.floor(sx2 + 1), Math.floor(sy2 + fh - 3), 2, 3);
+      ctx.fillRect(Math.floor(sx2 + fw - 3), Math.floor(sy2 + fh - 3), 2, 3);
+
+      // Papers on desk
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(Math.floor(sx2 + fw/2 - 2), Math.floor(sy2 + 1), 4, 2);
+
+    } else {
+      // Filing cabinet — dark metal
+      ctx.fillStyle = CO_CABINET;
+      ctx.fillRect(Math.floor(sx2), Math.floor(sy2), fw, fh);
+
+      // Cabinet drawers
+      ctx.fillStyle = CO_CABINET_DARK;
+      const drawerH = Math.floor(fh / 2);
+      ctx.fillRect(Math.floor(sx2), Math.floor(sy2 + drawerH - 0.5), fw, 1);
+
+      // Drawer handles
+      ctx.fillStyle = '#888';
+      ctx.fillRect(Math.floor(sx2 + fw/2 - 1), Math.floor(sy2 + drawerH/2 - 1), 2, 1);
+      ctx.fillRect(Math.floor(sx2 + fw/2 - 1), Math.floor(sy2 + drawerH + drawerH/2 - 1), 2, 1);
+    }
+  }
+}
+
 // ============ CAR RENDERING ============
 function drawCarsInRoom(rx, ry, roomSX, roomSY, offsetX, offsetY) {
   const rk = rkey(rx, ry);
@@ -592,6 +847,8 @@ function drawFloorPattern(rx, ry, offsetX, offsetY) {
     drawParkingRoom(rx, ry, offsetX, offsetY);
   } else if (currentLevel === 3) {
     drawElectricalRoom(rx, ry, offsetX, offsetY);
+  } else if (currentLevel === 4) {
+    drawOfficeRoom(rx, ry, offsetX, offsetY);
   }
 }
 
@@ -602,8 +859,11 @@ function drawLighting(offsetX, offsetY) {
   const py = p.y - offsetY;
   const lightRadius = TILE * VISION_RADIUS;
 
+  // Level 4: no fog of war — fully bright office
+  if (currentLevel === 4) {
+    // Skip fog entirely, just draw room ambient lights below
   // Level 2/3 lighting: fog overlay + optional flashlight cone window
-  if (currentLevel === 2 || currentLevel === 3) {
+  } else if (currentLevel === 2 || currentLevel === 3) {
     const isL3 = currentLevel === 3;
     const fogR = isL3 ? 18 : 0;
     const fogG = isL3 ? 12 : 0;
@@ -629,7 +889,7 @@ function drawLighting(offsetX, offsetY) {
       offscreen.height = oh;
       const osc = offscreen.getContext('2d');
 
-      // Fill with solid fog color (warm dark brown for L3, black for L2)
+      // Fill with solid fog color (warm brown for L3, black for L2)
       osc.fillStyle = isL3 ? 'rgb(18,12,8)' : '#000';
       osc.fillRect(0, 0, ow, oh);
 
@@ -727,7 +987,7 @@ function drawLighting(offsetX, offsetY) {
       const roomWX = rx * ROOM_PX - offsetX;
       const roomWY = ry * ROOM_PX - offsetY;
 
-      let alpha = currentLevel === 2 ? 0.02 : currentLevel === 3 ? 0.03 : 0.08;
+      let alpha = currentLevel === 2 ? 0.02 : currentLevel === 3 ? 0.03 : currentLevel === 4 ? 0.05 : 0.08;
       if (rtype === 'flicker') {
         const flicker = Math.sin(frameCount * 0.3 + hash(rx, ry)) * 0.5 + 0.5;
         const spike = Math.sin(frameCount * 1.7 + hash(rx + 50, ry)) > 0.85 ? 0 : 1;
@@ -863,6 +1123,42 @@ function drawEntity(offsetX, offsetY) {
       ctx.fillStyle = 'rgba(200,180,100,0.06)';
       ctx.fillRect(sx - 8, sy - 18, 16, 24);
     }
+  } else if (currentLevel === 4) {
+    // Level 4: "Duller" — pale translucent office worker, hard to see
+    const pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.05);
+    const visibility = e.visible ? 0.7 : 0.25; // fades when not in LOS
+
+    // Body — pale, featureless, blends with walls
+    ctx.fillStyle = `rgba(210,208,205,${visibility})`;
+    ctx.fillRect(sx - 3, sy - 10, 6, 14);
+
+    // Head — round, featureless
+    ctx.fillStyle = `rgba(220,218,215,${visibility})`;
+    ctx.fillRect(sx - 2, sy - 12, 4, 4);
+
+    // Slightly darker "suit" outline
+    ctx.fillStyle = `rgba(180,178,175,${visibility * 0.7})`;
+    ctx.fillRect(sx - 3, sy - 10, 6, 1);
+    ctx.fillRect(sx - 3, sy - 2, 6, 1);
+
+    // Faint "tie" line
+    ctx.fillStyle = `rgba(160,155,150,${visibility * 0.5})`;
+    ctx.fillRect(sx, sy - 9, 1, 5);
+
+    // Empty eye sockets — slightly darker
+    ctx.fillStyle = `rgba(180,178,175,${visibility * 0.8})`;
+    ctx.fillRect(sx - 1, sy - 10, 1, 1);
+    ctx.fillRect(sx + 1, sy - 10, 1, 1);
+
+    // Waver/translucency effect — subtle outline flicker
+    ctx.fillStyle = `rgba(200,198,195,${0.03 + pulse * 0.02})`;
+    ctx.fillRect(sx - 4, sy - 13, 8, 18);
+
+    // Shadow aura when not visible — even harder to detect
+    if (!e.visible && dist(e, player) < TILE * 5) {
+      ctx.fillStyle = 'rgba(200,200,200,0.04)';
+      ctx.fillRect(sx - 6, sy - 14, 12, 20);
+    }
   } else {
     // Level 1: dark shadow figure with red eyes
     ctx.fillStyle = C_ENTITY;
@@ -936,7 +1232,7 @@ function drawHUD() {
   const { rx, ry } = worldToRoom(player.x, player.y);
   const rtype = roomTypes[rkey(rx, ry)] || 'normal';
   if (rtype === 'exit') {
-    hint.textContent = currentLevel === 2 ? '你看到了电梯的灯光...' : currentLevel === 3 ? '你听到了发电机的声音...' : '你感受到了出口的气息...';
+    hint.textContent = currentLevel === 2 ? '你看到了电梯的灯光...' : currentLevel === 3 ? '你听到了发电机的声音...' : currentLevel === 4 ? '你看到了标有"EXIT"的门...' : '你感受到了出口的气息...';
     hint.style.color = '#aad';
   } else if (entity && dist(player, entity) < TILE * 6) {
     hint.textContent = '有什么东西在附近...';
@@ -947,6 +1243,12 @@ function drawHUD() {
   } else if (rtype === 'machine') {
     hint.textContent = '机器的热量令人窒息...';
     hint.style.color = '#d35400';
+  } else if (rtype === 'window') {
+    hint.textContent = '窗外有什么东西在移动...';
+    hint.style.color = '#7799bb';
+  } else if (rtype === 'breakroom') {
+    hint.textContent = '这里有一个休息室...';
+    hint.style.color = '#8ac';
   } else {
     const itemHere = roomItems[rkey(rx, ry)];
     if (itemHere && !itemHere.picked) {
@@ -1019,6 +1321,82 @@ function render() {
   drawEntity(offsetX, offsetY);
   drawPlayer(offsetX, offsetY);
   drawLighting(offsetX, offsetY);
+
+  // Debug: tile numbers + solid reason overlay
+  if (debugMode) {
+    const { rx: prx2, ry: pry2 } = worldToRoom(player.x, player.y);
+    const range = currentLevel === 2 ? 2 : 1;
+    ctx.font = '7px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let dx = -range; dx <= range; dx++) {
+      for (let dy = -range; dy <= range; dy++) {
+        const rx = prx2 + dx, ry = pry2 + dy;
+        if (rx < 0 || rx >= MAP_ROOMS || ry < 0 || ry >= MAP_ROOMS) continue;
+        const tiles = generateRoomTiles(rx, ry);
+        const roomWX = rx * ROOM_PX;
+        const roomWY = ry * ROOM_PX;
+        for (let ty = 0; ty < ROOM_TILES; ty++) {
+          for (let tx = 0; tx < ROOM_TILES; tx++) {
+            const wx = roomWX + tx * TILE + TILE / 2;
+            const wy = roomWY + ty * TILE + TILE / 2;
+            const sx2 = wx - offsetX;
+            const sy2 = wy - offsetY;
+            if (sx2 < -TILE || sx2 > INTERNAL_W + TILE || sy2 < -TILE || sy2 > INTERNAL_H + TILE) continue;
+            const tile = tiles[ty][tx];
+            // Determine solid reason inline (to show cause)
+            let solidReason = '';
+            if (tile === 1) {
+              solidReason = 'W'; // wall
+            } else if (currentLevel === 4 && tile === 5) {
+              solidReason = 'P'; // cubicle partition
+            } else {
+              // Check obstacle data layers
+              const rk = rkey(rx, ry);
+              if (carData[rk] && carData[rk].some(function(c) { return tx >= c.tx && tx < c.tx + c.w && ty >= c.ty && ty < c.ty + c.h; })) {
+                solidReason = 'C'; // car
+              } else if (machineData[rk] && machineData[rk].some(function(m) { return tx >= m.tx && tx < m.tx + m.w && ty >= m.ty && ty < m.ty + m.h; })) {
+                solidReason = 'M'; // machine
+              } else if (furnitureData[rk] && furnitureData[rk].some(function(f) { return tx >= f.tx && tx < f.tx + f.w && ty >= f.ty && ty < f.ty + f.h; })) {
+                solidReason = 'F'; // furniture
+              }
+            }
+            const solid = solidReason !== '';
+            // Background: red=solid
+            if (solid) {
+              ctx.fillStyle = 'rgba(255,30,30,0.55)';
+              ctx.fillRect(Math.floor(sx2 - TILE/2 + 1), Math.floor(sy2 - TILE/2 + 1), TILE - 2, TILE - 2);
+            }
+            // Show tile number, with reason letter underneath if solid
+            let clr = '#fff';
+            if (solid) {
+              clr = '#fff'; // white on red bg
+            } else if (tile === 1) clr = '#fcc';
+            else if (tile === 2) clr = '#ff0';
+            else if (tile === 3) clr = '#0ff';
+            else if (tile === 4) clr = '#4af';
+            else if (tile === 5) clr = currentLevel === 4 ? '#fa0' : '#aaa';
+            else if (tile === 6) clr = '#fa0';
+            else if (tile === 7) clr = '#ff0';
+            else if (tile === 8) clr = '#8cf';
+            else if (tile === 9) clr = '#f0f';
+            else clr = '#ccc';
+            ctx.fillStyle = clr;
+            if (solid) {
+              // Top line: tile number, bottom line: reason letter
+              ctx.fillText(tile, Math.floor(sx2), Math.floor(sy2 - 3));
+              ctx.fillStyle = '#faa';
+              ctx.fillText(solidReason, Math.floor(sx2), Math.floor(sy2 + 5));
+            } else {
+              ctx.fillText(tile, Math.floor(sx2), Math.floor(sy2));
+            }
+          }
+        }
+      }
+    }
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'alphabetic';
+  }
 
   // Debug arrow to exit
   if (debugMode && mazeData) {
